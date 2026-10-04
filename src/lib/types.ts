@@ -27,7 +27,7 @@ export const MODE_INFO: Record<Mode, { title: string; short: string; like: strin
   },
   struct: {
     title: 'Structure game', short: 'Structure', like: 'like ProteinMPNN (inverse folding)', rival: 'mpnn',
-    description: 'You see the protein backbone around a hidden residue (no side chains, like ProteinMPNN), which amino acids its 3D neighbours are, and the local sequence. Guess the hidden amino acid. This is how ProteinMPNN is trained to design sequences for a structure.',
+    description: 'You see the structure around a hidden residue — its own side chain removed, the side chains of its 3D neighbours shown — plus its backbone shape and the local sequence. Guess the hidden amino acid. This is how ProteinMPNN is trained to design sequences for a structure.',
   },
 };
 

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { aaColor, AA_INFO, type Mode, type Site, SS_TEXT } from '../lib/types';
 import { StructureViewer } from './StructureViewer';
 
@@ -81,10 +82,16 @@ export function NeighbourPanel({ site }: { site: Site }) {
 }
 
 export function StructurePanel({ site, reveal, height, mode }: { site: Site; reveal: boolean; height?: number; mode: Mode }) {
+  const [sc, setSc] = useState(() => { try { return localStorage.getItem('mask.sidechains') !== 'off'; } catch { return true; } });
+  const toggle = () => { const v = !sc; setSc(v); try { localStorage.setItem('mask.sidechains', v ? 'on' : 'off'); } catch { /* storage blocked */ } };
   return (
     <section className="panel">
-      <h4>Backbone structure <span className="muted">(no side chains — what ProteinMPNN sees)</span></h4>
-      <StructureViewer site={site} reveal={reveal} height={height} key={mode} />
+      <div className="panel-head">
+        <h4>Structure <span className="muted">{sc ? '(hidden residue: backbone only · neighbours: side chains)' : '(backbone only — what ProteinMPNN sees)'}</span></h4>
+        <button className="btn btn-sm sc-toggle" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={toggle}>{sc ? 'Hide side chains' : 'Show side chains'}</button>
+      </div>
+      <StructureViewer site={site} reveal={reveal} height={height} sideChains={sc} key={mode} />
+      {sc && <div className="muted sc-note">Neighbour side chains are shown to help you; ProteinMPNN only gets their identities (and backbone).</div>}
     </section>
   );
 }

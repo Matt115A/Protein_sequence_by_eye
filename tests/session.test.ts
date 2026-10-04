@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { boardRows } from '../src/components/LiveBoard';
 import { contextCurve, mean, modelCorrect, resemblance, streamLearners } from '../src/lib/analysis';
 import { parseDataset } from '../src/lib/dataset';
+import { maskResidue, virtualCb } from '../src/lib/structure';
 import { CSV_COLUMNS, trialsToCsv } from '../src/lib/export';
 import { revealedBy, SessionCore } from '../src/lib/session';
 import { simulateSession } from '../src/lib/simulate';
@@ -32,15 +33,32 @@ describe('dataset', () => {
       expect(FAMILY_OF[s.aa]).toBeTruthy();
     }
   });
-  it('structure files cannot leak the answer (backbone + virtual Cβ only, every residue ALA)', () => {
-    const files = readdirSync('public/data/structures');
-    expect(files.length).toBe(data.proteins.length);
+  it('structure files match the sequences, and the 3D view cannot show the hidden residue', () => {
+    expect(readdirSync('public/data/structures').length).toBe(data.proteins.length);
+    const THREE: Record<string, string> = { ALA: 'A', ARG: 'R', ASN: 'N', ASP: 'D', CYS: 'C', GLN: 'Q', GLU: 'E', GLY: 'G', HIS: 'H', ILE: 'I', LEU: 'L', LYS: 'K', MET: 'M', PHE: 'F', PRO: 'P', SER: 'S', THR: 'T', TRP: 'W', TYR: 'Y', VAL: 'V' };
     for (const p of data.proteins) {
-      const atoms = readFileSync(`public/data/structures/${p.key}.pdb`, 'utf8').split('\n').filter((l) => l.startsWith('ATOM'));
-      expect(new Set(atoms.map((l) => l.slice(17, 20)))).toEqual(new Set(['ALA']));
-      expect(new Set(atoms.map((l) => l.slice(12, 16).trim()))).toEqual(new Set(['N', 'CA', 'C', 'O', 'CB']));
-      expect(atoms.length).toBe(p.seq.length * 5);   // every residue has a Cβ, so glycines don't stand out
+      const pdb = readFileSync(`public/data/structures/${p.key}.pdb`, 'utf8');
+      const atoms = pdb.split('\n').filter((l) => l.startsWith('ATOM'));
+      const seq = new Map<number, string>();
+      for (const l of atoms) seq.set(Number(l.slice(22, 26)), THREE[l.slice(17, 20)]);
+      expect([...seq.values()].join('')).toBe(p.seq);
+      expect(atoms.some((l) => l.slice(76, 78).trim() === 'H')).toBe(false);
+      for (const site of data.sites.filter((s) => s.protein === p)) {
+        const masked = maskResidue(pdb, site.i + 1).split('\n').filter((l) => l.startsWith('ATOM'));
+        const mine = masked.filter((l) => Number(l.slice(22, 26)) === site.i + 1);
+        expect(mine.map((l) => l.slice(12, 16).trim())).toEqual(['N', 'CA', 'C', 'O', 'CB']);   // glycines get a virtual Cβ too
+        expect(new Set(mine.map((l) => l.slice(17, 20)))).toEqual(new Set(['ALA']));
+        expect(masked.filter((l) => Number(l.slice(22, 26)) !== site.i + 1)).toEqual(atoms.filter((l) => Number(l.slice(22, 26)) !== site.i + 1));
+      }
     }
+  });
+  it('the virtual Cβ lands where real Cβ atoms are', () => {
+    const pdb = readFileSync('public/data/structures/p00.pdb', 'utf8').split('\n').filter((l) => l.startsWith('ATOM'));
+    const res = new Map<number, Record<string, [number, number, number]>>();
+    for (const l of pdb) { const r = Number(l.slice(22, 26)); if (!res.has(r)) res.set(r, {}); res.get(r)![l.slice(12, 16).trim()] = [Number(l.slice(30, 38)), Number(l.slice(38, 46)), Number(l.slice(46, 54))]; }
+    const d = [...res.values()].filter((a) => a.CB).map((a) => { const v = virtualCb(a.N, a.CA, a.C); return Math.hypot(v[0] - a.CB[0], v[1] - a.CB[1], v[2] - a.CB[2]); });
+    expect(d.length).toBeGreaterThan(150);
+    expect(d.reduce((x, y) => x + y, 0) / d.length).toBeLessThan(0.2);
   });
 });
 
