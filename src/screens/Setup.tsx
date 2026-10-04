@@ -18,6 +18,7 @@ export function Setup({ data, initial, history, debug, onStart, onSimulate, onOp
   return (
     <div className="screen">
       <div className="setup" style={{ width: 'min(980px, 100%)' }}>
+        <a className="bioai-link" href="https://matt115a.github.io/BioAI_by_eye/">PART OF BIOAI BY EYE →</a>
         <h1 className="title">Fill the mask</h1>
         <p className="subtitle">Learn to predict a hidden amino acid the way protein AI models are trained; then race ESM2 and ProteinMPNN on the same sites.</p>
         <div className="mode-cards">
