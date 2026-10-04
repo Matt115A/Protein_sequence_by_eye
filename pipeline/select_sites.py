@@ -8,7 +8,7 @@ import numpy as np, pandas as pd
 from common import AA, THREE, HALF, parse, smooth_ss, ss_class, virtual_cb
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RAW = os.path.expanduser('~/Cambridge/youtube/proteins/data/raw')
+RAW = os.environ.get('PROTEINGYM_RAW', f'{ROOT}/data/raw')   # ProteinGym AF2.zip + DMS_substitutions.csv
 WORK = f'{ROOT}/data/work'; OUT_STRUCT = f'{ROOT}/app/public/data/structures'
 os.makedirs(f'{WORK}/pdb_orig', exist_ok=True); os.makedirs(OUT_STRUCT, exist_ok=True)
 N_LEARN, N_NEW = 28, 8   # proteins in the game

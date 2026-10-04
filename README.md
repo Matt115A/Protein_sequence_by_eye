@@ -1,5 +1,7 @@
 # Fill the mask
 
+**Try it: https://matt115a.github.io/Protein_sequence_by_eye/**
+
 **Can a person learn to predict a hidden amino acid the way protein AI models are trained — and how do they compare?**
 
 Two games on the same 2,520 sites in 36 real proteins (AlphaFold2 structures from ProteinGym):

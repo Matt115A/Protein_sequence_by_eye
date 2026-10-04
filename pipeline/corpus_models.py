@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from common import AA, HALF, cb_coords, parse, smooth_ss, ss_class, struct_features, window_onehot
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WORK = f'{ROOT}/data/work'; RAW = os.path.expanduser('~/Cambridge/youtube/proteins/data/raw')
+WORK = f'{ROOT}/data/work'; RAW = os.environ.get('PROTEINGYM_RAW', f'{ROOT}/data/raw')   # ProteinGym AF2.zip + DMS_substitutions.csv
 corpus = {c['uid'] for c in json.load(open(f'{WORK}/corpus.json'))}
 z = zipfile.ZipFile(f'{RAW}/AF2.zip')
 

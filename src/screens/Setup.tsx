@@ -19,7 +19,7 @@ export function Setup({ data, initial, history, debug, onStart, onSimulate, onOp
     <div className="screen">
       <div className="setup" style={{ width: 'min(980px, 100%)' }}>
         <h1 className="title">Fill the mask</h1>
-        <p className="subtitle">Learn to predict a hidden amino acid the way protein AI models are trained — then race ESM2 and ProteinMPNN on the same sites.</p>
+        <p className="subtitle">Learn to predict a hidden amino acid the way protein AI models are trained; then race ESM2 and ProteinMPNN on the same sites.</p>
         <div className="mode-cards">
           {(['seq', 'struct'] as Mode[]).map((m) => (
             <button key={m} className={`mode-card ${c.mode === m ? 'active' : ''}`} onClick={() => setMode(m)}>
@@ -33,7 +33,7 @@ export function Setup({ data, initial, history, debug, onStart, onSimulate, onOp
         <div className="card" style={{ marginBottom: 18 }}>
           <h3 className="card-title">How it works</h3>
           <p className="card-sub" style={{ fontSize: 14.5, lineHeight: 1.6 }}>
-            Protein AI models learn by filling in blanks. <b>ESM2</b> hides ~15% of the amino acids in millions of natural sequences and learns to predict them
+            Protein AI models can learn by filling in blanks. <b>ESM2</b> hides ~15% of the amino acids in millions of natural sequences and learns to predict them
             from the rest. <b>ProteinMPNN</b> learns the reverse of folding: given a backbone structure (no side chains) and the identities of nearby residues,
             predict each residue. Here you do the same task, on {data.sites.length.toLocaleString()} sites in {data.proteins.length} real proteins (AlphaFold structures),
             with the same feedback a model gets: the right answer. After each guess you'll see the model's probabilities for all 20 amino acids. Pick by clicking a
@@ -57,7 +57,7 @@ export function Setup({ data, initial, history, debug, onStart, onSimulate, onOp
         </div>
         <p className="note" style={{ marginTop: 22 }}>
           Data: AlphaFold2 structures from <a href="https://proteingym.org" target="_blank" rel="noreferrer">ProteinGym</a> (originally <a href="https://alphafold.ebi.ac.uk" target="_blank" rel="noreferrer">AlphaFold DB</a>, CC BY 4.0).
-          Models: <a href="https://github.com/facebookresearch/esm" target="_blank" rel="noreferrer">ESM2</a> (Lin et al. 2023) and <a href="https://github.com/dauparas/ProteinMPNN" target="_blank" rel="noreferrer">ProteinMPNN</a> (Dauparas et al. 2022), run on every site in advance.
+          Models: <a href="https://github.com/facebookresearch/esm" target="_blank" rel="noreferrer">ESM2</a> (Lin et al. 2023) and <a href="https://github.com/dauparas/ProteinMPNN" target="_blank" rel="noreferrer">ProteinMPNN</a> (Dauparas et al. 2022), run on every site in advance. Source and method: <a href="https://github.com/Matt115A/Protein_sequence_by_eye" target="_blank" rel="noreferrer">github.com/Matt115A/Protein_sequence_by_eye</a>.
         </p>
       </div>
     </div>

@@ -12,5 +12,5 @@
 - **Simple baselines:** always the commonest amino acid in the learning set (L); a logistic regression on the 10-residue window and a gradient-boosting model on
   the structure-game cues, both trained on ~27k sites from the 149 ProteinGym structures *not* used in the game.
 
-Pipeline (run from the project root, with ProteinGym's `AF2.zip` and `DMS_substitutions.csv` available and ProteinMPNN cloned into `tools/`):
+Pipeline (run from the project root, with ProteinGym's `AF2.zip` and `DMS_substitutions.csv` in `data/raw/` or `$PROTEINGYM_RAW` and ProteinMPNN cloned into `tools/`):
 `select_sites.py` → `esm_logits.py` → `window_sweep.py` → `mpnn_sites.py` → `corpus_models.py` → `aa_icons.py` → `build_dataset.py`.
