@@ -56,6 +56,10 @@ export function Setup({ data, initial, history, debug, onStart, onSimulate, onOp
             <input ref={fileRef} type="file" accept=".json" hidden onChange={(e) => e.target.files?.[0] && loadFile(e.target.files[0])} />
           </div>
         </div>
+        <p className="save-note">
+          <b>You don't have to finish in one sitting.</b> Pause at any point (<kbd>Esc</kbd>, or the Pause button on a phone) and choose <b>Stop &amp; save</b>, or just close the tab;
+          your answers are saved in this browser every few sites. When you come back they're listed under <b>Your attempts</b>, and your next run carries on with sites you haven't seen yet.
+        </p>
         <p className="note" style={{ marginTop: 22 }}>
           Data: AlphaFold2 structures from <a href="https://proteingym.org" target="_blank" rel="noreferrer">ProteinGym</a> (originally <a href="https://alphafold.ebi.ac.uk" target="_blank" rel="noreferrer">AlphaFold DB</a>, CC BY 4.0).
           Models: <a href="https://github.com/facebookresearch/esm" target="_blank" rel="noreferrer">ESM2</a> (Lin et al. 2023) and <a href="https://github.com/dauparas/ProteinMPNN" target="_blank" rel="noreferrer">ProteinMPNN</a> (Dauparas et al. 2022), run on every site in advance. Source and method: <a href="https://github.com/Matt115A/Protein_sequence_by_eye" target="_blank" rel="noreferrer">github.com/Matt115A/Protein_sequence_by_eye</a>.
@@ -79,7 +83,7 @@ function Attempts({ history, last, total, onOpen, onChange }: { history: History
         <h3 className="card-title">Your attempts</h3>
         <p className="card-sub">{history.length
           ? <>{history.length} on this device · {seen.toLocaleString()} of {total.toLocaleString()} sites seen. New runs skip sites you've already seen; clear your attempts to start from scratch.</>
-          : cleared ? <span className="attempts-cleared">✓ Cleared. Every site is available again.</span> : <>No attempts yet — your runs on this device will appear here, so you can re-open their analysis or start fresh.</>}</p>
+          : cleared ? <span className="attempts-cleared">✓ Cleared. Every site is available again.</span> : <>No attempts yet. Your runs on this device appear here, including ones you stop partway, so you can re-open their analysis or start fresh.</>}</p>
       </div></div>
       {history.length > 0 && (
         <>
