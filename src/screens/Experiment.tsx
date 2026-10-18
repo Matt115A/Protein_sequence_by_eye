@@ -1,13 +1,38 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LiveBoard } from '../components/LiveBoard';
+import { Help } from '../components/Help';
 import { Picker } from '../components/Picker';
+import { Tour, type TourStep } from '../components/Tour';
 import { BackbonePanel, NeighbourPanel, ProteinLine, SequenceWindow, StructurePanel } from '../components/TrialViews';
 import { probsOf } from '../lib/dataset';
 import { saveLocal } from '../lib/export';
 import type { SessionCore } from '../lib/session';
 import { AA_INFO, FAMILY_OF, MODE_INFO, type ModelInfo, type PhaseSpec, type Session, type Site, type TrialRecord } from '../lib/types';
 
-type State = 'intro' | 'trial' | 'feedback' | 'paused';
+type State = 'intro' | 'trial' | 'feedback' | 'paused' | 'tour';
+/** The clock stops while paused or touring the screen. */
+const stopped = (s: State) => s === 'paused' || s === 'tour';
+const TOUR_KEY = 'mask.tourSeen';
+const tourSeen = () => { try { return localStorage.getItem(TOUR_KEY) === '1'; } catch { return false; } };
+const TOUR: Record<'seq' | 'struct', TourStep[]> = {
+  seq: [
+    { target: 'window', help: 'window', extra: 'This is all you get, and all ESM2 gets in the "same window" comparison. Protein language models learn exactly this game from millions of sequences.' },
+    { target: 'prompt', help: 'picker' },
+    { target: 'picker', help: 'family' },
+    { target: 'board', help: 'board' },
+    { target: 'tour-button', help: 'board' },
+  ],
+  struct: [
+    { target: 'structure', help: 'structure' },
+    { target: 'backbone', help: 'backbone', extra: 'The plot shows the two backbone twist angles at this spot; the numbers say how buried it is.' },
+    { target: 'neighbours', help: 'neighbours' },
+    { target: 'window', help: 'windowStruct' },
+    { target: 'prompt', help: 'picker' },
+    { target: 'picker', help: 'family' },
+    { target: 'board', help: 'board' },
+    { target: 'tour-button', help: 'board' },
+  ],
+};
 const isTouch = () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 const isNarrow = () => typeof innerWidth !== 'undefined' && innerWidth <= 760;
 const noFocus = { tabIndex: -1, onMouseDown: (e: React.MouseEvent) => e.preventDefault() };
@@ -37,13 +62,13 @@ export function Experiment({ core, aa, models, onEnd }: { core: SessionCore; aa:
   useEffect(() => { const h = () => setNarrow(isNarrow()); addEventListener('resize', h); return () => removeEventListener('resize', h); }, []);
 
   const stateRef = useRef(state); stateRef.current = state;
-  const activeMs = () => active.current.accum + (stateRef.current === 'paused' ? 0 : performance.now() - active.current.since);
+  const activeMs = () => active.current.accum + (stopped(stateRef.current) ? 0 : performance.now() - active.current.since);
 
   const end = useCallback((reason: string) => {
     if (ended.current) return;
     ended.current = true;
     const a = active.current;
-    const s = core.finish(reason, a.accum + (state === 'paused' ? 0 : performance.now() - a.since), a.pausedAccum + (state === 'paused' ? performance.now() - a.pauseSince : 0));
+    const s = core.finish(reason, a.accum + (stopped(state) ? 0 : performance.now() - a.since), a.pausedAccum + (stopped(state) ? performance.now() - a.pauseSince : 0));
     saveLocal(s); onEnd(s);
   }, [core, onEnd, state]);
 
@@ -68,10 +93,16 @@ export function Experiment({ core, aa, models, onEnd }: { core: SessionCore; aa:
     else setState('trial');
   }, [core, phase, end]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const stopClock = (into: State, resumeTo: State) => { active.current.accum += performance.now() - active.current.since; active.current.pauseSince = performance.now(); prevState.current = resumeTo; setState(into); };
+  const startClock = () => { active.current.pausedAccum += performance.now() - active.current.pauseSince; active.current.since = performance.now(); setState(prevState.current); };
   const togglePause = useCallback(() => {
-    if (state === 'paused') { active.current.pausedAccum += performance.now() - active.current.pauseSince; active.current.since = performance.now(); setState(prevState.current); }
-    else { active.current.accum += performance.now() - active.current.since; active.current.pauseSince = performance.now(); prevState.current = state; setState('paused'); }
-  }, [state]);
+    if (state === 'paused') startClock();
+    else if (state !== 'tour') stopClock('paused', state);
+  }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
+  /** The tour stops the clock; afterwards the trial restarts its response timer, so touring never counts against you. */
+  const openTour = () => { if (!stopped(state)) stopClock('tour', state === 'intro' ? 'trial' : state); };
+  const closeTour = useCallback(() => { try { localStorage.setItem(TOUR_KEY, '1'); } catch { /* not essential */ } startClock(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [firstTime] = useState(() => !tourSeen());
 
   const respond = useCallback((letter: string, input: string, stamp: number) => {
     if (state !== 'trial' || !site || !onset.current) return;
@@ -89,6 +120,7 @@ export function Experiment({ core, aa, models, onEnd }: { core: SessionCore; aa:
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+      if (state === 'tour') return;   // the tour handles its own keys
       if (e.key === 'Escape') { e.preventDefault(); togglePause(); return; }
       if (state === 'intro' && e.code === 'Space') { e.preventDefault(); setState('trial'); return; }
       if (state === 'feedback' && (e.code === 'Space' || e.key === 'Enter')) { e.preventDefault(); advance(); return; }
@@ -112,14 +144,15 @@ export function Experiment({ core, aa, models, onEnd }: { core: SessionCore; aa:
         <span><span className="muted">Trial</span> <b>{core.trials.length + (state === 'feedback' ? 0 : 1)}</b></span>
         <span><span className="muted">Time</span> <b>{fmtClock(clock)}</b></span>
         {touch ? <button className="btn btn-sm hud-pause" {...noFocus} onClick={togglePause}>Pause</button> : <span className="muted hud-esc">Esc to pause or stop · progress is saved</span>}
-        <LiveBoard seen={seen.current} correct={core.trials.map((t) => t.correct)} models={models} window={20} storageKey={`mask.rival.${mode}`} fallback={MODE_INFO[mode].rival} />
+        <button className="btn btn-sm hud-tour" data-tour="tour-button" {...noFocus} onClick={openTour} title="A guided tour of everything on this screen">Tour</button>
+        <span data-tour="board" className="hud-board"><LiveBoard seen={seen.current} correct={core.trials.map((t) => t.correct)} models={models} window={20} storageKey={`mask.rival.${mode}`} fallback={MODE_INFO[mode].rival} /></span>
       </div>
       {site && (
         <>
           <div className="q-card">
             <ProteinLine site={site} reveal={!!revealed} />
             <SequenceWindow site={site} reveal={!!revealed} big={mode === 'seq'} />
-            {!revealed && <div className="q-prompt">Which amino acid is hidden? <span className="muted">{touch ? 'Tap one below.' : 'Click one below or type its letter.'}</span></div>}
+            {!revealed && <div className="q-prompt" data-tour="prompt"><Help k="picker">Which amino acid is hidden?</Help> <span className="muted">{touch ? 'Tap one below.' : 'Click one below or type its letter.'}</span></div>}
             {revealed && <Feedback site={site} t={last} aa={aa} mode={mode} onNext={advance} touch={touch} />}
           </div>
           {mode === 'struct' && (
@@ -134,8 +167,13 @@ export function Experiment({ core, aa, models, onEnd }: { core: SessionCore; aa:
       )}
       {state === 'intro' && phase && (
         <div className="overlay"><div className="intro">{phase.intro.split('\n').map((l, i) => (i ? <p key={i}>{l}</p> : <h2 key={i}>{l}</h2>))}
-          <p className="hint">{touch ? null : <span className="pulse">Press <kbd>Space</kbd> or </span>}<button className="btn btn-primary" {...noFocus} onClick={() => setState('trial')}>Begin</button></p></div></div>
+          {core.trials.length === 0 && (
+            <div className="tour-offer"><b>{firstTime ? 'New here?' : 'Need a reminder?'}</b> Take a one-minute tour of what each part of the screen shows. You can skip it at any point, and bring it back any time with the <b>Tour</b> button at the top.
+              <div><button className={`btn ${firstTime ? 'btn-primary' : ''}`} {...noFocus} onClick={openTour}>Take the tour</button></div></div>
+          )}
+          <p className="hint">{touch ? null : <span className="pulse">Press <kbd>Space</kbd> or </span>}<button className={`btn ${core.trials.length === 0 && firstTime ? '' : 'btn-primary'}`} {...noFocus} onClick={() => setState('trial')}>{core.trials.length === 0 && firstTime ? 'Skip the tour and begin' : 'Begin'}</button></p></div></div>
       )}
+      {state === 'tour' && <Tour steps={TOUR[mode]} onClose={closeTour} />}
       {state === 'paused' && (
         <div className="overlay"><div className="intro"><h2>Paused</h2><p>The timer is stopped.</p>
           <p className="save-note"><b>Need to go?</b> Stop &amp; save keeps your {core.trials.length} answer{core.trials.length === 1 ? '' : 's'} in this browser and shows your results so far. They stay under <b>Your attempts</b>, and next time you start a new run with sites you haven't seen.</p>

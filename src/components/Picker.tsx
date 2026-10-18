@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { loadIcons } from '../lib/dataset';
+import { Help } from './Help';
 import { AA_INFO, FAMILIES, FAMILY_COLOR } from '../lib/types';
 
 /**
@@ -59,10 +60,10 @@ export function Picker({ onPick, reveal, labels }: { onPick?: (aa: string, stamp
   const icons = useIcons();
   const max = reveal?.main ? Math.max(...Object.values(reveal.main)) : 1;
   return (
-    <div className={`picker ${reveal ? 'revealed' : ''}`}>
+    <div className={`picker ${reveal ? 'revealed' : ''}`} data-tour="picker">
       {FAMILIES.map((f) => (
         <div key={f.key} className="pk-family" style={{ ['--fam' as string]: FAMILY_COLOR[f.key] }}>
-          <div className="pk-fam-label"><b>{f.label}</b> <span>{f.note}</span></div>
+          <div className="pk-fam-label"><Help k="family"><b>{f.label}</b></Help> <span>{f.note}</span></div>
           <div className="pk-keys">
             {[...f.aas].map((a) => {
               const isTruth = reveal?.truth === a, isPick = reveal?.pick === a;

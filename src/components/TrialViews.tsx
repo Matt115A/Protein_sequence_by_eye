@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { aaColor, AA_INFO, type Mode, type Site, SS_TEXT } from '../lib/types';
+import { Help } from './Help';
 import { StructureViewer } from './StructureViewer';
 
 /** The 11-residue window: 5 context, the hidden residue, 5 context (the hidden one is filled in after you answer). */
 export function SequenceWindow({ site, reveal, big }: { site: Site; reveal: boolean; big?: boolean }) {
   const L = site.protein.seq.length;
   return (
-    <div className={`seqwin ${big ? 'big' : ''}`}>
+    <Help k={big ? 'window' : 'windowStruct'} block><div className={`seqwin ${big ? 'big' : ''}`} data-tour="window">
       <span className="seq-ellipsis" title={`${site.i - 5} more residues before`}>…</span>
       {[...site.w].map((a, k) => {
         const centre = k === 5;
@@ -19,14 +20,14 @@ export function SequenceWindow({ site, reveal, big }: { site: Site; reveal: bool
         );
       })}
       <span className="seq-ellipsis" title={`${L - site.i - 6} more residues after`}>…</span>
-    </div>
+    </div></Help>
   );
 }
 
 export function ProteinLine({ site, reveal }: { site: Site; reveal: boolean }) {
   return reveal
     ? <div className="protein-line">Residue <b>{site.i + 1}</b> of {site.protein.seq.length} in <b>{site.protein.name}</b> <span className="muted">· {site.protein.organism}</span></div>
-    : <div className="protein-line muted">From inside a real protein (which one is revealed after you answer)</div>;
+    : <div className="protein-line muted"><Help k="origin">From inside a real protein (which one is revealed after you answer)</Help></div>;
 }
 
 /** φ/ψ on a mini Ramachandran plot, secondary structure, and burial — the backbone facts ProteinMPNN gets. */
@@ -34,10 +35,10 @@ export function BackbonePanel({ site }: { site: Site }) {
   const S = 120, X = (phi: number) => ((phi + 180) / 360) * S, Y = (psi: number) => ((180 - psi) / 360) * S;
   const bur = site.nbr >= 22 ? 'buried' : site.nbr >= 14 ? 'partly buried' : 'exposed';
   return (
-    <section className="panel">
-      <h4>Backbone</h4>
+    <section className="panel" data-tour="backbone">
+      <h4><Help k="backbone">Backbone</Help></h4>
       <div className="bb-row">
-        <svg width={S} height={S} className="rama" aria-label="Ramachandran plot">
+        <Help k="rama" block><svg width={S} height={S} className="rama" aria-label="Ramachandran plot">
           <rect x={0} y={0} width={S} height={S} fill="#1c1c1a" />
           <ellipse cx={X(-63)} cy={Y(-43)} rx={16} ry={14} fill="rgba(201,133,0,.28)" /><text x={X(-63)} y={Y(-43) + 28} textAnchor="middle" className="rama-t">α</text>
           <ellipse cx={X(-120)} cy={Y(135)} rx={26} ry={16} fill="rgba(57,135,229,.25)" /><text x={X(-120)} y={Y(135) - 20} textAnchor="middle" className="rama-t">β</text>
@@ -45,11 +46,11 @@ export function BackbonePanel({ site }: { site: Site }) {
           <line x1={S / 2} x2={S / 2} y1={0} y2={S} stroke="#333" /><line x1={0} x2={S} y1={S / 2} y2={S / 2} stroke="#333" />
           {site.phi != null && site.psi != null && <circle cx={X(site.phi)} cy={Y(site.psi)} r={5} fill="#f2c230" stroke="#111" strokeWidth={1.5} />}
           <text x={3} y={S - 3} className="rama-t">φ →</text><text x={3} y={11} className="rama-t">ψ</text>
-        </svg>
+        </svg></Help>
         <div className="bb-facts">
-          <div><span className="muted">Shape</span><b>{SS_TEXT[site.ss]}</b></div>
-          <div><span className="muted">φ, ψ</span><b>{site.phi ?? '–'}°, {site.psi ?? '–'}°</b></div>
-          <div><span className="muted">Neighbours within 10 Å</span><b>{site.nbr}</b> <span className="muted">{bur}</span></div>
+          <div><Help k="shape"><span className="muted">Shape</span></Help><b>{SS_TEXT[site.ss]}</b></div>
+          <div><Help k="angles"><span className="muted">φ, ψ</span></Help><b>{site.phi ?? '–'}°, {site.psi ?? '–'}°</b></div>
+          <div><Help k="burial"><span className="muted">Neighbours within 10 Å</span></Help><b>{site.nbr}</b> <span className="muted">{bur}</span></div>
           <div className="bur-track"><span style={{ width: `${Math.min(100, (site.nbr / 32) * 100)}%` }} /></div>
         </div>
       </div>
@@ -61,8 +62,8 @@ export function BackbonePanel({ site }: { site: Site }) {
 export function NeighbourPanel({ site }: { site: Site }) {
   const seq = site.protein.seq;
   return (
-    <section className="panel">
-      <h4>3D neighbours <span className="muted">(nearest 16 by Cβ)</span></h4>
+    <section className="panel" data-tour="neighbours">
+      <h4><Help k="neighbours">3D neighbours</Help> <span className="muted">(nearest 16 by Cβ)</span></h4>
       <div className="nbr-list">
         {site.nbrs.map(([j, d]) => {
           const a = seq[j], off = j - site.i;
@@ -85,9 +86,9 @@ export function StructurePanel({ site, reveal, height, mode }: { site: Site; rev
   const [sc, setSc] = useState(() => { try { return localStorage.getItem('mask.sidechains') !== 'off'; } catch { return true; } });
   const toggle = () => { const v = !sc; setSc(v); try { localStorage.setItem('mask.sidechains', v ? 'on' : 'off'); } catch { /* storage blocked */ } };
   return (
-    <section className="panel">
+    <section className="panel" data-tour="structure">
       <div className="panel-head">
-        <h4>Structure <span className="muted">{sc ? '(hidden residue: backbone only · neighbours: side chains)' : '(backbone only, what ProteinMPNN sees)'}</span></h4>
+        <h4><Help k="structure">Structure</Help> <span className="muted">{sc ? '(hidden residue: backbone only · neighbours: side chains)' : '(backbone only, what ProteinMPNN sees)'}</span></h4>
         <button className="btn btn-sm sc-toggle" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={toggle}>{sc ? 'Hide side chains' : 'Show side chains'}</button>
       </div>
       <StructureViewer site={site} reveal={reveal} height={height} sideChains={sc} key={mode} />
