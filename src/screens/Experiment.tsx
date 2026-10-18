@@ -7,7 +7,7 @@ import { BackbonePanel, NeighbourPanel, ProteinLine, SequenceWindow, StructurePa
 import { probsOf } from '../lib/dataset';
 import { saveLocal } from '../lib/export';
 import type { SessionCore } from '../lib/session';
-import { AA_INFO, FAMILY_OF, MODE_INFO, type ModelInfo, type PhaseSpec, type Session, type Site, type TrialRecord } from '../lib/types';
+import { AA_INFO, FAMILY_OF, FAMILIES, MODE_INFO, trialPoints, type ModelInfo, type PhaseSpec, type Session, type Site, type TrialRecord } from '../lib/types';
 
 type State = 'intro' | 'trial' | 'feedback' | 'paused' | 'tour';
 /** The clock stops while paused or touring the screen. */
@@ -28,7 +28,7 @@ const TOUR: Record<'seq' | 'struct', TourStep[]> = {
     { target: 'neighbours', help: 'neighbours' },
     { target: 'window', help: 'windowStruct' },
     { target: 'prompt', help: 'picker' },
-    { target: 'picker', help: 'family' },
+    { target: 'picker', help: 'familyStruct' },
     { target: 'board', help: 'board' },
     { target: 'tour-button', help: 'board' },
   ],
@@ -145,7 +145,7 @@ export function Experiment({ core, aa, models, onEnd }: { core: SessionCore; aa:
         <span><span className="muted">Time</span> <b>{fmtClock(clock)}</b></span>
         {touch ? <button className="btn btn-sm hud-pause" {...noFocus} onClick={togglePause}>Pause</button> : <span className="muted hud-esc">Esc to pause or stop · progress is saved</span>}
         <button className="btn btn-sm hud-tour" data-tour="tour-button" {...noFocus} onClick={openTour} title="A guided tour of everything on this screen">Tour</button>
-        <span data-tour="board" className="hud-board"><LiveBoard seen={seen.current} correct={core.trials.map((t) => t.correct)} models={models} window={20} storageKey={`mask.rival.${mode}`} fallback={MODE_INFO[mode].rival} /></span>
+        <span data-tour="board" className="hud-board"><LiveBoard seen={seen.current} correct={core.trials.map(trialPoints)} mode={mode} models={models} window={20} storageKey={`mask.rival.${mode}`} fallback={MODE_INFO[mode].rival} /></span>
       </div>
       {site && (
         <>
@@ -161,7 +161,7 @@ export function Experiment({ core, aa, models, onEnd }: { core: SessionCore; aa:
               <div className="panels-s-side"><BackbonePanel site={site} /><NeighbourPanel site={site} /></div>
             </div>
           )}
-          <Picker onPick={(a, stamp) => respond(a, 'tap', stamp)} reveal={reveal} showKeys={!touch} labels={fm.labels} />
+          <Picker onPick={(a, stamp) => respond(a, 'tap', stamp)} reveal={reveal} showKeys={!touch} labels={fm.labels} mode={mode} />
           {reveal && <div className="pk-legend muted">Numbers on the keys: <b>{fm.labels[0]}</b>'s probability for each amino acid · smaller: {fm.labels[1]}. Green ring = real answer.</div>}
         </>
       )}
@@ -192,12 +192,14 @@ function Feedback({ site, t, aa, mode, onNext, touch }: { site: Site; t: TrialRe
     const top = Object.entries(p).sort((a, b) => b[1] - a[1]);
     return { label: fm.labels[k], top: top[0], truthP: p[site.aa], rank: top.findIndex(([a]) => a === site.aa) + 1, right: top[0][0] === site.aa };
   });
-  const fam = FAMILY_OF[site.aa] === FAMILY_OF[t.response];
+  const fam = FAMILY_OF[site.aa] === FAMILY_OF[t.response], pts = trialPoints(t);
+  const famLabel = FAMILIES.find((f) => f.key === FAMILY_OF[site.aa])?.label.toLowerCase();
   return (
     <div className={`feedback-m ${t.correct ? 'ok' : fam ? 'fam' : 'no'}`}>
       <div className="fb-verdict">
         {t.correct ? `✓ Correct: ${AA_INFO[site.aa].name}` : fam ? `≈ Right family: it was ${AA_INFO[site.aa].name} (${site.aa})` : `✗ It was ${AA_INFO[site.aa].name} (${site.aa})`}
         {!t.correct && <span className="muted"> · you picked {AA_INFO[t.response].name}</span>}
+        {mode === 'struct' && <span className={`fb-points ${pts === 1 ? 'full' : pts > 0 ? 'part' : ''}`}>+{pts === 1 ? '1' : pts.toFixed(2)} {pts === 1 ? 'point' : 'points'}{pts > 0 && pts < 1 ? ` (right ${famLabel} family)` : ''}</span>}
       </div>
       <div className="fb-models">
         {lines.map((l) => (

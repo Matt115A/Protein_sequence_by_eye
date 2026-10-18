@@ -1,4 +1,4 @@
-import type { Mode, Session } from './types';
+import { type Mode, type Session, trialPoints } from './types';
 
 /** Past sessions on this device: which sites were seen (so they're never reused) and how they went. */
 export interface HistoryEntry {
@@ -40,7 +40,7 @@ function save(h: HistoryEntry[]) {
 
 export function entryFromSession(s: Session): HistoryEntry {
   const fb = s.trials.filter((t) => t.feedback !== 'none').slice(-100);
-  const acc = (ts: typeof fb) => (ts.length ? ts.filter((t) => t.correct).length / ts.length : null);
+  const acc = (ts: typeof fb) => (ts.length ? ts.reduce((a, t) => a + trialPoints(t), 0) / ts.length : null);
   return {
     session_id: s.meta.session_id,
     start_time: s.meta.start_time,

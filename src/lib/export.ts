@@ -2,7 +2,7 @@ import type { Session, TrialRecord } from './types';
 
 export const CSV_COLUMNS: (keyof TrialRecord)[] = [
   'trial', 'timestamp', 'elapsed_ms', 'mode', 'phase', 'feedback', 'site_id', 'protein', 'group', 'position',
-  'truth', 'response', 'correct', 'same_family', 'input', 'rt_ms', 'rolling_accuracy', 'onset_perf_ms', 'response_perf_ms',
+  'truth', 'response', 'correct', 'same_family', 'points', 'input', 'rt_ms', 'rolling_accuracy', 'onset_perf_ms', 'response_perf_ms',
 ];
 
 function cell(v: unknown): string {

@@ -1,5 +1,5 @@
 import { freshSeed, makeRng, type Rng, shuffle } from './rng';
-import { type Config, type Dataset, FAMILY_OF, type Mode, type PhaseSpec, type PriorExperience, type Session, type SessionMeta, type Site, type TrialRecord } from './types';
+import { type Config, type Dataset, FAMILY_OF, type Mode, points, trialPoints, type PhaseSpec, type PriorExperience, type Session, type SessionMeta, type Site, type TrialRecord } from './types';
 
 export const APP_VERSION = '1.0.0';
 
@@ -77,7 +77,7 @@ export class SessionCore {
   liveAccuracy(window: number): number | null {
     if (!this.trials.length) return null;
     const ts = this.trials.slice(-window);
-    return ts.filter((t) => t.correct).length / ts.length;
+    return ts.reduce((a, t) => a + trialPoints(t), 0) / ts.length;
   }
 
   record(r: ResponseInput): { trial: TrialRecord; next: PhaseSpec | null; finished: boolean } {
@@ -85,14 +85,14 @@ export class SessionCore {
     const trial: TrialRecord = {
       trial: this.trials.length + 1, timestamp: r.wallOnset.toISOString(), elapsed_ms: Math.round(r.elapsedMs), mode: this.config.mode, phase: ph.name, feedback: ph.feedback,
       site_id: s.id, protein: s.protein.key, group: s.protein.group, position: s.i + 1, truth: s.aa, response: r.response,
-      correct: r.response === s.aa, same_family: FAMILY_OF[r.response] === FAMILY_OF[s.aa], input: r.input, rt_ms: Math.round(r.rtMs), rolling_accuracy: null,
+      correct: r.response === s.aa, same_family: FAMILY_OF[r.response] === FAMILY_OF[s.aa], points: points(this.config.mode, r.response, s.aa), input: r.input, rt_ms: Math.round(r.rtMs), rolling_accuracy: null,
       onset_perf_ms: Math.round(r.onsetPerf * 100) / 100, response_perf_ms: Math.round(r.responsePerf * 100) / 100,
     };
     for (const j of [s.i, ...revealedBy(s, this.config.mode)]) this.revealed.add(`${s.protein.key}:${j}`);
     this.trials.push(trial);
     this.inPhase++;
     const w = Math.min(30, this.trials.length);
-    trial.rolling_accuracy = this.trials.slice(-w).filter((t) => t.correct).length / w;
+    trial.rolling_accuracy = this.trials.slice(-w).reduce((a, t) => a + trialPoints(t), 0) / w;
     this.meta.total_trials = this.trials.length;
     if (this.inPhase >= ph.trials) {
       this.phaseIdx++; this.inPhase = 0;

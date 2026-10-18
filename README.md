@@ -12,6 +12,10 @@ Two games on the same 2,520 sites in 36 real proteins (AlphaFold2 structures fro
 - **Structure game — like ProteinMPNN.** You see the backbone around the hidden residue (no side chains anywhere, like ProteinMPNN),
   the amino acids of its 16 nearest 3D neighbours, its φ/ψ angles and burial, and the local sequence. Feedback: ProteinMPNN's
   probabilities given backbone + neighbours (how it scores a residue) and given the backbone alone.
+  **Scoring:** 1 point for the exact amino acid; a pick from the right family earns partial credit inversely proportional to
+  that family's share of the 2,520 sites (hydrophobic 0.13, polar 0.22, positive 0.29, special 0.31, negative 0.34, aromatic 0.5),
+  so a blind pick from any family has the same expected bonus (about 0.04). Every benchmark is scored on its top-1 pick by the same rule.
+  The sequence game stays all-or-nothing.
 
 Pick from the 20 amino acids drawn as structures and grouped by family (hydrophobic, aromatic, polar, positive, negative, special),
 by clicking/tapping or typing the one-letter code. Learn on 28 proteins, then test on 8 new ones. A live leaderboard lets you race a model

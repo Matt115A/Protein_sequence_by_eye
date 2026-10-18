@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ModelInfo, Site } from '../lib/types';
+import { type Mode, type ModelInfo, points, type Site } from '../lib/types';
 
 const short = (l: string) => l;
 const pct = (v: number | null) => (v == null ? '–' : `${Math.round(v * 100)}%`);
@@ -12,22 +12,22 @@ function saveRival(key: string, name: string) { try { localStorage.setItem(key, 
 interface Row { name: string; label: string; all: number | null; recent: number | null; you?: boolean }
 
 /** Accuracy of you and every model on exactly the mutations answered so far (overall and over the last `window`). */
-export function boardRows(seen: Site[], correct: boolean[], models: ModelInfo[], window: number): Row[] {
+export function boardRows(seen: Site[], correct: number[], models: ModelInfo[], window: number, mode: Mode): Row[] {
   const n = seen.length, r0 = Math.max(0, n - window);
-  const mean = (xs: boolean[]) => (xs.length ? xs.filter(Boolean).length / xs.length : null);
+  const mean = (xs: number[]) => (xs.length ? xs.reduce((a, x) => a + x, 0) / xs.length : null);
   const rows: Row[] = [{ name: 'you', label: 'You', all: mean(correct), recent: mean(correct.slice(r0)), you: true }];
   for (const m of models) {
-    const hits = seen.map((v) => v.calls[m.name] === v.aa);
+    const hits = seen.map((v) => points(mode, v.calls[m.name], v.aa));
     rows.push({ name: m.name, label: short(m.label), all: mean(hits), recent: mean(hits.slice(r0)) });
   }
   return rows;
 }
 
 /** Live scoreboard: you vs a rival model of your choice, overall and last N, plus your rank among all models. */
-export function LiveBoard({ seen, correct, models, window = 20, storageKey, fallback }: { seen: Site[]; correct: boolean[]; models: ModelInfo[]; window?: number; storageKey: string; fallback: string }) {
+export function LiveBoard({ seen, correct, models, window = 20, storageKey, fallback, mode }: { seen: Site[]; correct: number[]; models: ModelInfo[]; window?: number; storageKey: string; fallback: string; mode: Mode }) {
   const [rival, setRival] = useState(() => loadRival(models, storageKey, fallback));
   const [open, setOpen] = useState(false);
-  const rows = boardRows(seen, correct, models, window);
+  const rows = boardRows(seen, correct, models, window, mode);
   const you = rows[0], riv = rows.find((r) => r.name === rival) ?? rows[rows.length - 1];
   const ranked = rows.slice().sort((a, b) => (b.all ?? 0) - (a.all ?? 0) || (a.you ? -1 : b.you ? 1 : 0));
   const rank = seen.length ? 1 + rows.filter((r) => !r.you && (r.all ?? 0) > (you.all ?? 0)).length : null;
@@ -57,7 +57,7 @@ export function LiveBoard({ seen, correct, models, window = 20, storageKey, fall
       <button className="lb-rank" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={() => setOpen((o) => !o)} title="Show the full leaderboard">
         <span className="lb-rank-n">{rank == null ? '–' : `#${rank}`}</span>
         <span className="muted">of {rows.length}</span>
-        {lead != null && <span className={lead > 0 ? 'good' : lead < 0 ? 'bad' : 'muted'}>{lead > 0 ? `+${lead}` : lead} pts</span>}
+        {lead != null && <span className={lead > 0 ? 'good' : lead < 0 ? 'bad' : 'muted'}>{lead > 0 ? `${lead} ahead` : lead < 0 ? `${-lead} behind` : 'level'}</span>}
       </button>
       {open && (
         <div className="lb-pop" onClick={(e) => e.stopPropagation()}>

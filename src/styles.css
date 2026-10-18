@@ -469,7 +469,7 @@ button.answer-key:active { transform: translateY(1px); }
   .pk-keys { gap: 4px; flex-wrap: wrap; }
   .pk-key { width: 62px; padding: 2px 2px 4px; }
   .pk-icon { width: 56px; height: 56px; }
-  .pk-fam-label span { display: none; }
+  .pk-fam-label .pk-note { display: none; }
   .nbr-list { grid-template-columns: 1fr; }
   .feedback-m .fb-verdict { font-size: 16px; }
   .fb-models { font-size: 12px; align-items: flex-start; }
@@ -527,3 +527,11 @@ p.save-note b { color: var(--text); }
 .tour-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
 .tour-offer { margin: 26px auto 0; max-width: 560px; font-size: 16px; line-height: 1.55; color: var(--text-2); background: var(--surface); border: 1px solid rgba(242, 194, 48, .45); border-radius: 14px; padding: 14px 18px; }
 .tour-offer .btn { margin-top: 12px; }
+.fb-points { margin-left: 10px; font-size: 13px; font-weight: 700; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+.fb-points.full { color: #3ccf7e; border-color: rgba(60, 207, 126, .5); }
+.fb-points.part { color: #f2c230; border-color: rgba(242, 194, 48, .5); }
+.pk-credit { margin-left: 6px; font-size: 11px; color: var(--fam); border: 1px solid var(--fam); border-radius: 99px; padding: 0 6px; opacity: .85; }
+.credit-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.credit-chip { font-size: 13px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 99px; color: var(--text-2); background: var(--surface-2); }
+.credit-chip b { color: var(--text); margin-left: 4px; }
+.credit-chip.exact { border-color: rgba(60, 207, 126, .6); }

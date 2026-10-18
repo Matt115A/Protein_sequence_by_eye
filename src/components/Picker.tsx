@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { loadIcons } from '../lib/dataset';
 import { Help } from './Help';
-import { AA_INFO, FAMILIES, FAMILY_COLOR } from '../lib/types';
+import { AA_INFO, FAMILIES, FAMILY_COLOR, FAMILY_CREDIT, type Mode } from '../lib/types';
 
 /**
  * Crop the RDKit drawings so they fill the keys, but with one shared scale: every icon gets a viewBox of the same size,
@@ -56,14 +56,14 @@ const fmt = (p: number) => (p >= 0.995 ? '99%' : p >= 0.095 ? `${Math.round(p * 
  * The 20 amino acids as structure drawings, grouped by family. Before answering: click one (or type its letter).
  * After: each key shows the model's probability, the real answer is ringed green and your pick yellow (or red if wrong).
  */
-export function Picker({ onPick, reveal, labels }: { onPick?: (aa: string, stamp: number) => void; reveal?: PickerReveal | null; showKeys?: boolean; labels?: [string, string?] }) {
+export function Picker({ onPick, reveal, labels, mode }: { onPick?: (aa: string, stamp: number) => void; reveal?: PickerReveal | null; showKeys?: boolean; labels?: [string, string?]; mode?: Mode }) {
   const icons = useIcons();
   const max = reveal?.main ? Math.max(...Object.values(reveal.main)) : 1;
   return (
     <div className={`picker ${reveal ? 'revealed' : ''}`} data-tour="picker">
       {FAMILIES.map((f) => (
         <div key={f.key} className="pk-family" style={{ ['--fam' as string]: FAMILY_COLOR[f.key] }}>
-          <div className="pk-fam-label"><Help k="family"><b>{f.label}</b></Help> <span>{f.note}</span></div>
+          <div className="pk-fam-label"><Help k={mode === 'struct' ? 'familyStruct' : 'family'}><b>{f.label}</b></Help> <span className="pk-note">{f.note}</span>{mode === 'struct' && <span className="pk-credit" title="points for a right-family pick">{FAMILY_CREDIT[f.key]} pt</span>}</div>
           <div className="pk-keys">
             {[...f.aas].map((a) => {
               const isTruth = reveal?.truth === a, isPick = reveal?.pick === a;

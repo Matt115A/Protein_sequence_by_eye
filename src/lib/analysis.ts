@@ -1,9 +1,10 @@
-import { FAMILY_OF, type Dataset, type Mode, type ModelInfo, type Session, type Site, type TrialRecord } from './types';
+import { FAMILIES, FAMILY_CREDIT, FAMILY_OF, FAMILY_SHARE, type Dataset, type Mode, type ModelInfo, points, type Session, type Site, type TrialRecord, trialPoints } from './types';
 
 export interface Pt { x: number; y: number }
 
-export const acc = (ts: { correct: boolean }[]) => (ts.length ? ts.filter((t) => t.correct).length / ts.length : null);
-export const mean = (xs: boolean[]) => (xs.length ? xs.filter(Boolean).length / xs.length : null);
+/** Mean score: exact match = 1; in the structure game, the right family earns partial credit (see points()). */
+export const acc = (ts: TrialRecord[]) => (ts.length ? ts.reduce((a, t) => a + trialPoints(t), 0) / ts.length : null);
+export const mean = (xs: (number | boolean)[]) => (xs.length ? xs.reduce<number>((a, x) => a + Number(x), 0) / xs.length : null);
 export function median(xs: number[]): number | null {
   if (!xs.length) return null;
   const s = [...xs].sort((a, b) => a - b), m = s.length >> 1;
@@ -14,18 +15,24 @@ export function wilson(k: number, n: number, z = 1.96): [number, number] | null 
   const p = k / n, d = 1 + (z * z) / n, c = p + (z * z) / (2 * n), h = z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n));
   return [(c - h) / d, (c + h) / d];
 }
-/** Rolling mean of 0/1 values (window w), one point per trial. */
-export function rolling(v: boolean[], w: number): Pt[] {
+/** Rolling mean of per-trial scores (window w), one point per trial. */
+export function rolling(v: (number | boolean)[], w: number): Pt[] {
   const out: Pt[] = [];
   let s = 0;
-  v.forEach((x, i) => { s += x ? 1 : 0; if (i >= w) s -= v[i - w] ? 1 : 0; out.push({ x: i + 1, y: s / Math.min(i + 1, w) }); });
+  v.forEach((x, i) => { s += Number(x); if (i >= w) s -= Number(v[i - w]); out.push({ x: i + 1, y: s / Math.min(i + 1, w) }); });
   return out;
+}
+
+/** Expected score of picking uniformly at random: 5%, plus (structure game) partial credit for landing in the right family. */
+export function randomScore(mode: Mode) {
+  if (mode === 'seq') return 0.05;
+  return FAMILIES.reduce((a, f) => a + FAMILY_SHARE[f.key] * (1 + (f.aas.length - 1) * FAMILY_CREDIT[f.key]) / 20, 0);
 }
 
 export function phaseList(s: Session) { return s.meta.config.phases.filter((p) => s.trials.some((t) => t.phase === p.name)); }
 export function phaseStats(s: Session) {
   return phaseList(s).map((p) => {
-    const ts = s.trials.filter((t) => t.phase === p.name), k = ts.filter((t) => t.correct).length;
+    const ts = s.trials.filter((t) => t.phase === p.name), k = ts.reduce((a, t) => a + trialPoints(t), 0);
     return { ...p, n: ts.length, acc: acc(ts), ci: wilson(k, ts.length), fam: ts.length ? ts.filter((t) => t.same_family).length / ts.length : null, rt: median(ts.map((t) => t.rt_ms)) };
   });
 }
@@ -33,7 +40,8 @@ export function phaseStats(s: Session) {
 /** Benchmarks that are a fair or reference comparison in this game (not the context sweep). */
 export const modelsFor = (data: Dataset, mode: Mode): ModelInfo[] => data.models.filter((m) => m.games.includes(mode));
 
-export const modelCorrect = (trials: TrialRecord[], byId: Map<number, Site>, model: string) => trials.map((t) => byId.get(t.site_id)!.calls[model] === t.truth);
+/** A model's score on each of your trials, from its top-1 pick, under the same rules as you. */
+export const modelCorrect = (trials: TrialRecord[], byId: Map<number, Site>, model: string) => trials.map((t) => points(t.mode, byId.get(t.site_id)!.calls[model], t.truth));
 
 // ── learners that get exactly your experience: the same trials, in your order, with the same feedback ──
 const AAS = 'ACDEFGHIKLMNPQRSTVWY';
@@ -68,13 +76,13 @@ export class OnlineSoftmax {
 export function streamLearners(s: Session, byId: Map<number, Site>, mode: Mode) {
   const ts = s.trials.filter((t) => byId.has(t.site_id));
   const counts: Record<string, number> = {};
-  const freq: boolean[] = [], lr: boolean[] = [];
+  const freq: number[] = [], lr: number[] = [];
   const model = new OnlineSoftmax(mode === 'struct' ? 229 : 200);
   for (const t of ts) {
     const site = byId.get(t.site_id)!, x = cues(site, mode);
     const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'L';
-    freq.push(top === t.truth);
-    lr.push(model.predict(x) === t.truth);
+    freq.push(points(mode, top, t.truth));
+    lr.push(points(mode, model.predict(x), t.truth));
     counts[t.truth] = (counts[t.truth] ?? 0) + 1;
     model.update(x, t.truth);
   }
@@ -95,7 +103,7 @@ export function confusion(s: Session, order: string) {
 export function perAA(s: Session, byId: Map<number, Site>, model: string, order: string) {
   return [...order].map((a) => {
     const ts = s.trials.filter((t) => t.truth === a);
-    return { aa: a, n: ts.length, you: acc(ts), model: mean(ts.map((t) => byId.get(t.site_id)!.calls[model] === a)), picked: s.trials.filter((t) => t.response === a).length };
+    return { aa: a, n: ts.length, you: acc(ts), model: mean(ts.map((t) => points(t.mode, byId.get(t.site_id)!.calls[model], a))), picked: s.trials.filter((t) => t.response === a).length };
   });
 }
 
@@ -115,7 +123,7 @@ export function resemblance(s: Session, byId: Map<number, Site>, models: ModelIn
     return {
       ...m, agree, kappa: pe >= 1 ? 0 : (agree - pe) / (1 - pe),
       sharedErrors: wrong.length ? wrong.filter((t) => byId.get(t.site_id)!.calls[m.name] === t.response).length / wrong.length : null,
-      accuracy: calls.filter((c, i) => c === ts[i].truth).length / n,
+      accuracy: calls.reduce((a, c, i) => a + points(ts[i].mode, c, ts[i].truth), 0) / n,
       famAgree: calls.filter((c, i) => FAMILY_OF[c] === FAMILY_OF[ts[i].response]).length / n,
     };
   }).sort((a, b) => b.kappa - a.kappa);

@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { loadLocal } from '../lib/export';
 import { LevelToggle, useLevel } from '../lib/level';
 import { clearAllAttempts, type HistoryEntry, loadArchived, removeFromHistory } from '../lib/history';
-import { type Config, type Dataset, defaultConfig, MODE_INFO, type Mode, type Session } from '../lib/types';
+import { type Config, type Dataset, defaultConfig, FAMILIES, FAMILY_COLOR, FAMILY_CREDIT, MODE_INFO, type Mode, type Session } from '../lib/types';
 
 const EXPERT_MODE: Record<Mode, string> = {
   seq: 'Masked-token prediction from an 11-residue window (10 flanking residues). Compared with ESM2 8M to 650M on the same window and on the full sequence with only the site masked.',
@@ -39,6 +39,18 @@ export function Setup({ data, initial, history, debug, onStart, onSimulate, onOp
             </button>
           ))}
         </div>
+        {c.mode === 'struct' && (
+          <div className="card scoring-card" style={{ marginBottom: 18 }}>
+            <h3 className="card-title">How points work in the structure game</h3>
+            <p className="card-sub" style={{ fontSize: 14.5, lineHeight: 1.6 }}>
+              {level === 'learner'
+                ? 'The exact amino acid scores 1 point. The wrong amino acid from the right family scores partial credit, and rarer families are worth more, so always picking the most common kind of amino acid does not pay. The AI models are scored the same way.'
+                : 'Exact match: 1. Same family: 0.5 × (share of the rarest family / share of this family) over the 2,520 sites, so a blind pick from any family has the same expected bonus (about 0.04). Models are scored on their top-1 pick under the same rule.'}
+            </p>
+            <div className="credit-chips"><span className="credit-chip exact">exact amino acid <b>1</b></span>
+              {FAMILIES.map((f) => <span key={f.key} className="credit-chip" style={{ borderColor: FAMILY_COLOR[f.key] }}><span style={{ color: FAMILY_COLOR[f.key] }}>{f.label}</span> family <b>{FAMILY_CREDIT[f.key]}</b></span>)}</div>
+          </div>
+        )}
         <div className="card" style={{ marginBottom: 18 }}>
           <h3 className="card-title">How it works</h3>
           {level === 'learner' ? (
@@ -56,7 +68,7 @@ export function Setup({ data, initial, history, debug, onStart, onSimulate, onOp
               the whole sequence with only the site masked; ProteinMPNN v_48_020 with no backbone noise, decoding the site last (backbone plus all other residues, how
               it scores a residue) and first (backbone only). After each guess you see the true residue and the reference model's full distribution, i.e. the same
               supervision signal. Baselines: always leucine (about 10%), plus logistic regression on the window and gradient boosting on the structure cues, both
-              trained on ~27k sites from ProteinGym structures not used here. Chance is 5%.
+              trained on ~27k sites from ProteinGym structures not used here. Chance is 5% (about 8% in the structure game, with family credit).
             </p>
           )}
         </div>
@@ -107,7 +119,7 @@ function Attempts({ history, last, total, onOpen, onChange }: { history: History
       {history.length > 0 && (
         <>
           <div className="table-scroll"><table className="data">
-            <thead><tr><th>#</th><th>When</th><th>Game</th><th className="num">Sites</th><th className="num">Accuracy</th><th className="num">Right family</th><th /></tr></thead>
+            <thead><tr><th>#</th><th>When</th><th>Game</th><th className="num">Sites</th><th className="num">Score</th><th className="num">Right family</th><th /></tr></thead>
             <tbody>{history.slice().reverse().map((h, i) => {
               const s = sessionFor(h.session_id);
               return (

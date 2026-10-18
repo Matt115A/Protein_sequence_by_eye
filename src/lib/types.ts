@@ -27,7 +27,7 @@ export const MODE_INFO: Record<Mode, { title: string; short: string; like: strin
   },
   struct: {
     title: 'Structure game', short: 'Structure', like: 'like ProteinMPNN (inverse folding)', rival: 'mpnn',
-    description: 'You see the structure around a hidden residue (its own side chain removed, the side chains of its 3D neighbours shown), plus its backbone shape and the local sequence. Guess the hidden amino acid. This is how ProteinMPNN is trained to design sequences for a structure.',
+    description: 'You see the structure around a hidden residue (its own side chain removed, the side chains of its 3D neighbours shown), plus its backbone shape and the local sequence. Guess the hidden amino acid. This is how ProteinMPNN is trained to design sequences for a structure. The exact amino acid scores 1 point; the right family scores partial credit, more for rarer families.',
   },
 };
 
@@ -40,7 +40,7 @@ export const PRESETS: Record<Mode, PhaseSpec[]> = {
   ],
   struct: [
     { name: 'learn', label: 'Learning (28 proteins)', trials: 80, group: 'learn', feedback: 'reveal',
-      intro: 'Part 1 of 2: learning.\nA residue in a real protein structure has had its side chain hidden. You see its backbone, its 3D neighbours and the local sequence.\nPick the amino acid you think belongs there. After each guess you\'ll see the real answer and ProteinMPNN\'s probabilities.' },
+      intro: 'Part 1 of 2: learning.\nA residue in a real protein structure has had its side chain hidden. You see its backbone, its 3D neighbours and the local sequence.\nPick the amino acid you think belongs there. After each guess you\'ll see the real answer and ProteinMPNN\'s probabilities.\nScoring: 1 point for the exact amino acid, partial credit for the right family (more for rarer families). Hover over a family name to see its points.' },
     { name: 'new', label: 'New proteins', trials: 30, group: 'new', feedback: 'reveal',
       intro: 'Part 2 of 2: eight proteins you haven\'t seen.\nSame task. Use what you learned.' },
   ],
@@ -97,6 +97,8 @@ export interface TrialRecord {
   response: string;
   correct: boolean;
   same_family: boolean;
+  /** 1 for the exact amino acid; in the structure game, partial credit for the right family (FAMILY_CREDIT). Missing in sessions saved before scoring changed. */
+  points?: number;
   input: string;
   rt_ms: number;
   rolling_accuracy: number | null;
@@ -139,6 +141,21 @@ export const FAMILIES: { key: Family; label: string; aas: string; note: string }
   { key: 'special', label: 'Special', aas: 'GPC', note: 'backbone & disulfides' },
 ];
 export const FAMILY_OF: Record<string, Family> = Object.fromEntries(FAMILIES.flatMap((f) => [...f.aas].map((a) => [a, f.key])));
+
+/**
+ * Structure game scoring. Exact amino acid = 1 point. Right family, wrong amino acid = partial credit, inversely
+ * proportional to how common that family is among the game's 2,520 sites (FAMILY_SHARE), so picking blindly from
+ * any family earns the same expected bonus and you can't profit from always choosing the commonest family.
+ * The rarest family (aromatic) is worth half a point. The sequence game stays all-or-nothing.
+ */
+export const FAMILY_SHARE: Record<Family, number> = { hydrophobic: 0.322, polar: 0.192, positive: 0.145, special: 0.134, negative: 0.123, aromatic: 0.083 };
+const RAREST = Math.min(...Object.values(FAMILY_SHARE));
+export const FAMILY_CREDIT = Object.fromEntries(Object.entries(FAMILY_SHARE).map(([f, p]) => [f, Math.round((0.5 * RAREST / p) * 100) / 100])) as Record<Family, number>;
+export function points(mode: Mode, pick: string, truth: string): number {
+  if (pick === truth) return 1;
+  return mode === 'struct' && FAMILY_OF[pick] && FAMILY_OF[pick] === FAMILY_OF[truth] ? FAMILY_CREDIT[FAMILY_OF[truth]] : 0;
+}
+export const trialPoints = (t: TrialRecord) => t.points ?? points(t.mode, t.response, t.truth);
 /** Amino acids in picker order (grouped by family). */
 export const AA_ORDER = FAMILIES.map((f) => f.aas).join('');
 

@@ -7,7 +7,7 @@ import { maskResidue, virtualCb } from '../src/lib/structure';
 import { CSV_COLUMNS, trialsToCsv } from '../src/lib/export';
 import { revealedBy, SessionCore } from '../src/lib/session';
 import { simulateSession } from '../src/lib/simulate';
-import { AA_ORDER, defaultConfig, FAMILY_OF, type Mode, type Session } from '../src/lib/types';
+import { AA_ORDER, defaultConfig, FAMILY_CREDIT, FAMILY_OF, FAMILY_SHARE, type Mode, points, type Session, trialPoints } from '../src/lib/types';
 
 const data = parseDataset(JSON.parse(readFileSync('public/data/dataset.json', 'utf8')));
 const byId = new Map(data.sites.map((s) => [s.id, s]));
@@ -117,9 +117,10 @@ describe('analysis', () => {
   });
   it('live leaderboard scores everyone on the answered sites', () => {
     const seen = s.trials.slice(0, 30).map((t) => byId.get(t.site_id)!);
-    const rows = boardRows(seen, s.trials.slice(0, 30).map((t) => t.correct), data.models, 20);
-    expect(rows[0].all).toBeCloseTo(s.trials.slice(0, 30).filter((t) => t.correct).length / 30, 9);
-    expect(rows.find((r) => r.name === 'mpnn')!.all).toBeCloseTo(seen.filter((x) => x.calls.mpnn === x.aa).length / 30, 9);
+    const rows = boardRows(seen, s.trials.slice(0, 30).map(trialPoints), data.models, 20, s.meta.config.mode);
+    const mode = s.meta.config.mode;
+    expect(rows[0].all).toBeCloseTo(s.trials.slice(0, 30).reduce((a, t) => a + points(mode, t.response, t.truth), 0) / 30, 9);
+    expect(rows.find((r) => r.name === 'mpnn')!.all).toBeCloseTo(seen.reduce((a, x) => a + points(mode, x.calls.mpnn, x.aa), 0) / 30, 9);
   });
 });
 
@@ -136,5 +137,26 @@ describe('attempts', () => {
     expect(removeFromHistory(a.meta.session_id)).toHaveLength(1);
     expect(clearAllAttempts()).toEqual([]);
     expect(loadArchived(b.meta.session_id)).toBeNull();
+  });
+});
+
+describe('structure game scoring', () => {
+  it('exact = 1 point, right family = partial credit, otherwise 0; the sequence game stays all-or-nothing', () => {
+    expect(points('struct', 'L', 'L')).toBe(1);
+    expect(points('struct', 'I', 'L')).toBe(FAMILY_CREDIT.hydrophobic);
+    expect(points('struct', 'W', 'F')).toBe(0.5);
+    expect(points('struct', 'D', 'L')).toBe(0);
+    expect(points('seq', 'I', 'L')).toBe(0);
+    for (const c of Object.values(FAMILY_CREDIT)) { expect(c).toBeGreaterThan(0); expect(c).toBeLessThanOrEqual(0.5); }
+  });
+  it('family shares match the dataset, and blind picks from any family earn the same expected bonus', () => {
+    const n = data.sites.length;
+    for (const [f, share] of Object.entries(FAMILY_SHARE)) expect(data.sites.filter((x) => FAMILY_OF[x.aa] === f).length / n).toBeCloseTo(share, 2);
+    const bonus = Object.entries(FAMILY_SHARE).map(([f, p]) => p * FAMILY_CREDIT[f as keyof typeof FAMILY_CREDIT]);
+    expect(Math.max(...bonus) - Math.min(...bonus)).toBeLessThan(0.002);
+  });
+  it('old sessions without points are scored from their answers', () => {
+    const t = { mode: 'struct', response: 'I', truth: 'V' } as Parameters<typeof trialPoints>[0];
+    expect(trialPoints(t)).toBe(FAMILY_CREDIT.hydrophobic);
   });
 });
