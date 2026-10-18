@@ -23,26 +23,26 @@ export interface Config {
 export const MODE_INFO: Record<Mode, { title: string; short: string; like: string; rival: string; description: string }> = {
   seq: {
     title: 'Sequence game', short: 'Sequence', like: 'like ESM2 (masked language model)', rival: 'esm650_w',
-    description: 'You see 10 amino acids from inside a real protein with the middle one hidden. Guess the hidden amino acid. This is exactly the task a masked protein language model like ESM2 is trained on — billions of times.',
+    description: 'You see 10 amino acids from inside a real protein with the middle one hidden. Guess the hidden amino acid. This is exactly the task a masked protein language model like ESM2 is trained on, billions of times.',
   },
   struct: {
     title: 'Structure game', short: 'Structure', like: 'like ProteinMPNN (inverse folding)', rival: 'mpnn',
-    description: 'You see the structure around a hidden residue — its own side chain removed, the side chains of its 3D neighbours shown — plus its backbone shape and the local sequence. Guess the hidden amino acid. This is how ProteinMPNN is trained to design sequences for a structure.',
+    description: 'You see the structure around a hidden residue (its own side chain removed, the side chains of its 3D neighbours shown), plus its backbone shape and the local sequence. Guess the hidden amino acid. This is how ProteinMPNN is trained to design sequences for a structure.',
   },
 };
 
 export const PRESETS: Record<Mode, PhaseSpec[]> = {
   seq: [
     { name: 'learn', label: 'Learning (28 proteins)', trials: 100, group: 'learn', feedback: 'reveal',
-      intro: 'Part 1 of 2 — learning.\nTen amino acids from inside a real protein; the middle one is hidden. Pick the amino acid you think belongs there.\nAfter each guess you\'ll see the real answer and what ESM2 would have guessed, with its probabilities for all 20.' },
+      intro: 'Part 1 of 2: learning.\nTen amino acids from inside a real protein; the middle one is hidden. Pick the amino acid you think belongs there.\nAfter each guess you\'ll see the real answer and what ESM2 would have guessed, with its probabilities for all 20.' },
     { name: 'new', label: 'New proteins', trials: 40, group: 'new', feedback: 'reveal',
-      intro: 'Part 2 of 2 — eight proteins you haven\'t seen.\nSame task. Use what you learned.' },
+      intro: 'Part 2 of 2: eight proteins you haven\'t seen.\nSame task. Use what you learned.' },
   ],
   struct: [
     { name: 'learn', label: 'Learning (28 proteins)', trials: 80, group: 'learn', feedback: 'reveal',
-      intro: 'Part 1 of 2 — learning.\nA residue in a real protein structure has had its side chain hidden. You see its backbone, its 3D neighbours and the local sequence.\nPick the amino acid you think belongs there. After each guess you\'ll see the real answer and ProteinMPNN\'s probabilities.' },
+      intro: 'Part 1 of 2: learning.\nA residue in a real protein structure has had its side chain hidden. You see its backbone, its 3D neighbours and the local sequence.\nPick the amino acid you think belongs there. After each guess you\'ll see the real answer and ProteinMPNN\'s probabilities.' },
     { name: 'new', label: 'New proteins', trials: 30, group: 'new', feedback: 'reveal',
-      intro: 'Part 2 of 2 — eight proteins you haven\'t seen.\nSame task. Use what you learned.' },
+      intro: 'Part 2 of 2: eight proteins you haven\'t seen.\nSame task. Use what you learned.' },
   ],
 };
 

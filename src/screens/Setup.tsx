@@ -1,14 +1,21 @@
 import { useRef, useState } from 'react';
 import { loadLocal } from '../lib/export';
+import { LevelToggle, useLevel } from '../lib/level';
 import { clearAllAttempts, type HistoryEntry, loadArchived, removeFromHistory } from '../lib/history';
 import { type Config, type Dataset, defaultConfig, MODE_INFO, type Mode, type Session } from '../lib/types';
 
-const pct = (v: number | null) => (v == null ? '—' : `${Math.round(v * 100)}%`);
+const EXPERT_MODE: Record<Mode, string> = {
+  seq: 'Masked-token prediction from an 11-residue window (10 flanking residues). Compared with ESM2 8M to 650M on the same window and on the full sequence with only the site masked.',
+  struct: 'Inverse folding: the masked residue as backbone plus virtual Cβ, its 16 nearest neighbours with side chains (toggleable), and the local sequence. Compared with ProteinMPNN decoding the site last and first.',
+};
+
+const pct = (v: number | null) => (v == null ? '–' : `${Math.round(v * 100)}%`);
 
 export function Setup({ data, initial, history, debug, onStart, onSimulate, onOpenSession, onHistoryChange }: {
   data: Dataset; initial: Config; history: HistoryEntry[]; debug: boolean; onStart: (c: Config) => void; onSimulate: (c: Config) => void; onOpenSession: (s: Session) => void; onHistoryChange: (h: HistoryEntry[]) => void;
 }) {
   const [c, setC] = useState<Config>(initial);
+  const [level, setLevel] = useLevel();
   const [last, setLast] = useState(() => loadLocal());
   const fileRef = useRef<HTMLInputElement>(null);
   const total = c.phases.reduce((a, p) => a + p.trials, 0);
@@ -18,28 +25,40 @@ export function Setup({ data, initial, history, debug, onStart, onSimulate, onOp
   return (
     <div className="screen">
       <div className="setup" style={{ width: 'min(980px, 100%)' }}>
-        <a className="bioai-link" href="https://matt115a.github.io/BioAI_by_eye/">PART OF BIOAI BY EYE →</a>
+        <div className="setup-top"><a className="bioai-link" href="https://matt115a.github.io/BioAI_by_eye/">PART OF BIOAI BY EYE →</a><LevelToggle level={level} onChange={setLevel} /></div>
         <h1 className="title">Fill the mask</h1>
-        <p className="subtitle">Learn to predict a hidden amino acid the way protein AI models are trained; then race ESM2 and ProteinMPNN on the same sites.</p>
+        <p className="subtitle">{level === 'learner' ? 'Learn to predict a hidden amino acid the way protein AI models are trained, then race ESM2 and ProteinMPNN on the same sites.'
+          : '20-way masked residue prediction on AlphaFold2 models · scored against ESM2 (8M to 650M) and ProteinMPNN on identical sites.'}</p>
         <div className="mode-cards">
           {(['seq', 'struct'] as Mode[]).map((m) => (
             <button key={m} className={`mode-card ${c.mode === m ? 'active' : ''}`} onClick={() => setMode(m)}>
               <div className="mode-title">{MODE_INFO[m].title}</div>
               <div className="mode-like">{MODE_INFO[m].like}</div>
-              <div className="mode-desc">{MODE_INFO[m].description}</div>
+              <div className="mode-desc">{level === 'learner' ? MODE_INFO[m].description : EXPERT_MODE[m]}</div>
               <div className="mode-demo">{m === 'seq' ? <span className="demo-seq">…K L V E A <b>?</b> G Q R L D…</span> : <span className="demo-seq">backbone · 3D neighbours · window</span>}</div>
             </button>
           ))}
         </div>
         <div className="card" style={{ marginBottom: 18 }}>
           <h3 className="card-title">How it works</h3>
-          <p className="card-sub" style={{ fontSize: 14.5, lineHeight: 1.6 }}>
-            Protein AI models can learn by filling in blanks. <b>ESM2</b> hides ~15% of the amino acids in millions of natural sequences and learns to predict them
-            from the rest. <b>ProteinMPNN</b> learns the reverse of folding: given a backbone structure (no side chains) and the identities of nearby residues,
-            predict each residue. Here you do the same task, on {data.sites.length.toLocaleString()} sites in {data.proteins.length} real proteins (AlphaFold structures),
-            with the same feedback a model gets: the right answer. After each guess you'll see the model's probabilities for all 20 amino acids. Pick by clicking a
-            structure, or type its one-letter code. A live leaderboard lets you race a model as you go. Chance is 5%; always guessing the commonest amino acid (leucine) gets about 10%.
-          </p>
+          {level === 'learner' ? (
+            <p className="card-sub" style={{ fontSize: 14.5, lineHeight: 1.6 }}>
+              Protein AI models can learn by filling in blanks. <b>ESM2</b> hides ~15% of the amino acids in millions of natural sequences and learns to predict them
+              from the rest. <b>ProteinMPNN</b> learns the reverse of folding: given a backbone structure (no side chains) and the identities of nearby residues,
+              predict each residue. Here you do the same task, on {data.sites.length.toLocaleString()} sites in {data.proteins.length} real proteins (AlphaFold structures),
+              with the same feedback a model gets: the right answer. After each guess you'll see the model's probabilities for all 20 amino acids. Pick by clicking a
+              structure, or type its one-letter code. A live leaderboard lets you race a model as you go. Chance is 5%; always guessing the commonest amino acid (leucine) gets about 10%.
+            </p>
+          ) : (
+            <p className="card-sub" style={{ fontSize: 14.5, lineHeight: 1.6 }}>
+              {data.sites.length.toLocaleString()} sites in {data.proteins.length} proteins (AlphaFold2 models distributed with ProteinGym v1.3; mean pLDDT ≥ 85, site pLDDT ≥ 80),
+              28 for learning and 8 held out as new proteins. References: ESM2 masked-token probabilities (8M, 35M, 150M, 650M), run on exactly the window shown and on
+              the whole sequence with only the site masked; ProteinMPNN v_48_020 with no backbone noise, decoding the site last (backbone plus all other residues, how
+              it scores a residue) and first (backbone only). After each guess you see the true residue and the reference model's full distribution, i.e. the same
+              supervision signal. Baselines: always leucine (about 10%), plus logistic regression on the window and gradient boosting on the structure cues, both
+              trained on ~27k sites from ProteinGym structures not used here. Chance is 5%.
+            </p>
+          )}
         </div>
         <Attempts history={history} last={last} total={data.sites.length} onOpen={onOpenSession} onChange={(h) => { onHistoryChange(h); setLast(loadLocal()); }} />
         <div className="card" style={{ marginBottom: 18 }}>
@@ -93,7 +112,7 @@ function Attempts({ history, last, total, onOpen, onChange }: { history: History
               const s = sessionFor(h.session_id);
               return (
                 <tr key={h.session_id}>
-                  <td className="muted">{history.length - i}</td><td>{fmtWhen(h.start_time)}</td><td>{MODE_INFO[h.mode]?.short ?? '—'}</td><td className="num">{h.n_trials}</td><td className="num"><b>{pct(h.final.acc)}</b></td><td className="num muted">{pct(h.final.fam)}</td>
+                  <td className="muted">{history.length - i}</td><td>{fmtWhen(h.start_time)}</td><td>{MODE_INFO[h.mode]?.short ?? '–'}</td><td className="num">{h.n_trials}</td><td className="num"><b>{pct(h.final.acc)}</b></td><td className="num muted">{pct(h.final.fam)}</td>
                   <td className="attempt-actions">{confirm === h.session_id ? (
                     <><span className="muted">Remove this attempt?</span><button className="btn btn-sm" onClick={() => setConfirm(null)}>Cancel</button><button className="btn btn-sm btn-danger" onClick={() => { setConfirm(null); onChange(removeFromHistory(h.session_id)); }}>Remove</button></>
                   ) : (

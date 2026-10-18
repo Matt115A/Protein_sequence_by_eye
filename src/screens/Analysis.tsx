@@ -6,7 +6,7 @@ import { AA_INFO, AA_ORDER, type Dataset, MODE_INFO, type Session, type Site } f
 
 export const KIND_COLOR: Record<string, string> = { you: C.yellow, learner: '#199e70', simple: '#9cc3e6', window: '#c98500', full: '#3987e5', structure: '#e87ba4' };
 const KIND_LABEL: Record<string, string> = { learner: 'Learns from your trials only', simple: 'Simple baseline', window: 'ESM2 · same window as you', full: 'ESM2 · whole protein', structure: 'ProteinMPNN' };
-const pct = (v: number | null | undefined) => (v == null ? '—' : `${Math.round(v * 100)}%`);
+const pct = (v: number | null | undefined) => (v == null ? '–' : `${Math.round(v * 100)}%`);
 const FONT = "Inter, -apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif";
 
 export function Analysis({ session, data, byId }: { session: Session; data: Dataset; byId: Map<number, Site> }) {
@@ -41,7 +41,7 @@ export function Analysis({ session, data, byId }: { session: Session; data: Data
 
       <Card title="Leaderboard on identical sites" svgRef={refs.board} exportName="leaderboard"
         sub={<>Every player scored on exactly the {session.trials.length} sites you answered (top-1 accuracy). {mode === 'seq'
-          ? 'ESM2 "same window" gets only the 10 residues you saw; "whole protein" gets the entire sequence with the site masked — how it is normally used.'
+          ? 'ESM2 "same window" gets only the 10 residues you saw; "whole protein" gets the entire sequence with the site masked, which is how it is normally used.'
           : 'ProteinMPNN "backbone + neighbours" is how it scores a residue (all other residues known); "backbone only" gets no sequence at all.'} Green bars learn only from your trials, in your order, with your feedback.</>}>
         <Legend items={[{ name: 'You', color: C.yellow, square: true }, ...kinds.map((k) => ({ name: KIND_LABEL[k], color: KIND_COLOR[k], square: true }))]} />
         <RankBars rows={r.board.map((b) => ({ label: b.label, value: b.acc ?? 0, color: KIND_COLOR[b.kind], bold: b.kind === 'you' }))} svgRef={refs.board} />
@@ -95,7 +95,7 @@ export function Analysis({ session, data, byId }: { session: Session; data: Data
 
       {r.res.length > 0 && (
         <Card title="Which model do you think like?" svgRef={refs.res} exportName="model_resemblance"
-          sub="Agreement beyond chance (Cohen's κ) between your picks and each model's, on the same sites. 'Shared mistakes' = of the sites you got wrong, how often the model picked the same wrong amino acid — the strongest sign of thinking alike.">
+          sub="Agreement beyond chance (Cohen's κ) between your picks and each model's, on the same sites. 'Shared mistakes' = of the sites you got wrong, how often the model picked the same wrong amino acid, the strongest sign of thinking alike.">
           <div className="grid2" style={{ marginBottom: 0 }}>
             <RankBars rows={r.res.map((m) => ({ label: m.label, value: m.kappa, color: KIND_COLOR[m.kind], bold: false }))} svgRef={refs.res} format={(v) => v.toFixed(2)} />
             <div className="table-scroll"><table className="data" style={{ fontSize: 13 }}>

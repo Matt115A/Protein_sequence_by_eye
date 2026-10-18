@@ -108,7 +108,7 @@ export function Experiment({ core, aa, models, onEnd }: { core: SessionCore; aa:
   return (
     <div className={`exp-m mode-${mode}`}>
       <div className="hud-p">
-        <span><span className="muted">{MODE_INFO[mode].short}</span> <b>{phase?.label ?? '—'}</b></span>
+        <span><span className="muted">{MODE_INFO[mode].short}</span> <b>{phase?.label ?? '–'}</b></span>
         <span><span className="muted">Trial</span> <b>{core.trials.length + (state === 'feedback' ? 0 : 1)}</b></span>
         <span><span className="muted">Time</span> <b>{fmtClock(clock)}</b></span>
         {touch ? <button className="btn btn-sm hud-pause" {...noFocus} onClick={togglePause}>Pause</button> : <span className="muted hud-esc">Esc to pause or stop · progress is saved</span>}
@@ -158,7 +158,7 @@ function Feedback({ site, t, aa, mode, onNext, touch }: { site: Site; t: TrialRe
   return (
     <div className={`feedback-m ${t.correct ? 'ok' : fam ? 'fam' : 'no'}`}>
       <div className="fb-verdict">
-        {t.correct ? `✓ Correct — ${AA_INFO[site.aa].name}` : fam ? `≈ Right family — it was ${AA_INFO[site.aa].name} (${site.aa})` : `✗ It was ${AA_INFO[site.aa].name} (${site.aa})`}
+        {t.correct ? `✓ Correct: ${AA_INFO[site.aa].name}` : fam ? `≈ Right family: it was ${AA_INFO[site.aa].name} (${site.aa})` : `✗ It was ${AA_INFO[site.aa].name} (${site.aa})`}
         {!t.correct && <span className="muted"> · you picked {AA_INFO[t.response].name}</span>}
       </div>
       <div className="fb-models">

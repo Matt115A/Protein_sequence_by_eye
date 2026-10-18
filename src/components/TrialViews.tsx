@@ -48,7 +48,7 @@ export function BackbonePanel({ site }: { site: Site }) {
         </svg>
         <div className="bb-facts">
           <div><span className="muted">Shape</span><b>{SS_TEXT[site.ss]}</b></div>
-          <div><span className="muted">φ, ψ</span><b>{site.phi ?? '—'}°, {site.psi ?? '—'}°</b></div>
+          <div><span className="muted">φ, ψ</span><b>{site.phi ?? '–'}°, {site.psi ?? '–'}°</b></div>
           <div><span className="muted">Neighbours within 10 Å</span><b>{site.nbr}</b> <span className="muted">{bur}</span></div>
           <div className="bur-track"><span style={{ width: `${Math.min(100, (site.nbr / 32) * 100)}%` }} /></div>
         </div>
@@ -87,7 +87,7 @@ export function StructurePanel({ site, reveal, height, mode }: { site: Site; rev
   return (
     <section className="panel">
       <div className="panel-head">
-        <h4>Structure <span className="muted">{sc ? '(hidden residue: backbone only · neighbours: side chains)' : '(backbone only — what ProteinMPNN sees)'}</span></h4>
+        <h4>Structure <span className="muted">{sc ? '(hidden residue: backbone only · neighbours: side chains)' : '(backbone only, what ProteinMPNN sees)'}</span></h4>
         <button className="btn btn-sm sc-toggle" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={toggle}>{sc ? 'Hide side chains' : 'Show side chains'}</button>
       </div>
       <StructureViewer site={site} reveal={reveal} height={height} sideChains={sc} key={mode} />
