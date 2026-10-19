@@ -540,3 +540,4 @@ p.save-note b { color: var(--text); }
 .spinner { display: inline-block; width: 18px; height: 18px; border: 2.5px solid rgba(242, 194, 48, .25); border-top-color: #f2c230; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: middle; flex: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .q-loading { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.structure-reset { position: absolute; top: 8px; right: 8px; z-index: 3; background: rgba(31, 31, 29, .85); }

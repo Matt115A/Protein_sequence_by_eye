@@ -16,6 +16,7 @@ export function StructureViewer({ site, reveal, height = 380, sideChains = true,
   const framed = useRef<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const home = useRef<unknown>(null);   // the starting camera for this site, for Reset view
   const ready = useRef(onReady); ready.current = onReady;
 
   useEffect(() => {
@@ -80,6 +81,7 @@ export function StructureViewer({ site, reveal, height = 380, sideChains = true,
           v.zoomTo({ resi: [resi, ...site.nbrs.map(([j]) => j + 1)] } as never);
           v.zoom(1.15);
           framed.current = site.id;
+          home.current = v.getView();
         }
         v.render();
         setLoading(false);
@@ -94,6 +96,8 @@ export function StructureViewer({ site, reveal, height = 380, sideChains = true,
       <div ref={div} style={{ width: '100%', height, position: 'relative' }} />
       {loading && !err && <div className="structure-loading"><span className="spinner" />Loading the 3D structure…</div>}
       {err && <div className="structure-error">{err}</div>}
+      {!loading && !err && <button className="btn btn-sm structure-reset" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} title="Back to the starting view"
+        onClick={() => { const v = viewer.current; if (v && home.current) { v.setView(home.current as never); v.render(); } }}>Reset view</button>}
       <div className="structure-hint">drag to rotate · scroll to zoom</div>
     </div>
   );
