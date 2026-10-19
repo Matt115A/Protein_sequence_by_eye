@@ -9,12 +9,14 @@ import { aaColor, type Site } from '../lib/types';
  * neighbours are drawn as side-chain sticks with family-coloured carbons (or as Cβ spheres with side chains off), labelled
  * with their amino acid. Drag to rotate, scroll/pinch to zoom.
  */
-export function StructureViewer({ site, reveal, height = 380, sideChains = true }: { site: Site; reveal: boolean; height?: number; sideChains?: boolean }) {
+export function StructureViewer({ site, reveal, height = 380, sideChains = true, onReady }: { site: Site; reveal: boolean; height?: number; sideChains?: boolean; onReady?: (siteId: number) => void }) {
   const div = useRef<HTMLDivElement>(null);
   const viewer = useRef<ReturnType<typeof $3Dmol.createViewer> | null>(null);
   const loaded = useRef<string | null>(null);
   const framed = useRef<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const ready = useRef(onReady); ready.current = onReady;
 
   useEffect(() => {
     if (!div.current || viewer.current) return;
@@ -26,6 +28,7 @@ export function StructureViewer({ site, reveal, height = 380, sideChains = true 
     } catch (e) {
       viewer.current = null;
       setErr(`3D view unavailable in this browser (${e instanceof Error ? e.message : e}). The neighbour list and backbone panel still describe the structure.`);
+      setLoading(false);
     }
     return () => { try { viewer.current?.clear(); } catch { /* ignore */ } viewer.current = null; loaded.current = null; };
   }, []);
@@ -35,13 +38,16 @@ export function StructureViewer({ site, reveal, height = 380, sideChains = true 
     (async () => {
       try {
         const v = viewer.current;
-        if (!v) return;
-        const tag = `${site.protein.key}:${site.i}`;
-        if (loaded.current !== tag) {   // a fresh model per site: the masked residue differs each time
+        if (!v) { ready.current?.(site.id); return; }
+        // a fresh model per site (the masked residue differs each time), and the unmasked one once the answer is revealed
+        const tag = `${site.protein.key}:${site.i}:${reveal ? 'real' : 'masked'}`;
+        if (loaded.current !== tag) {
+          const newSite = !loaded.current?.startsWith(`${site.protein.key}:${site.i}:`);
+          if (newSite) { v.removeAllModels(); v.removeAllLabels(); v.removeAllShapes(); v.render(); setLoading(true); }   // never leave the previous structure on screen
           const pdb = await loadStructure(site.protein.key);
           if (cancelled) return;
           v.removeAllModels();
-          v.addModel(maskResidue(pdb, site.i + 1), 'pdb');
+          v.addModel(reveal ? pdb : maskResidue(pdb, site.i + 1), 'pdb');
           loaded.current = tag;
           if (framed.current !== site.id) framed.current = null;
         }
@@ -62,16 +68,23 @@ export function StructureViewer({ site, reveal, height = 380, sideChains = true 
           }
           v.addLabel(a, { fontSize: 11, fontColor: '#111', backgroundColor: aaColor(a), backgroundOpacity: 0.8, borderThickness: 0, inFront: true, alignment: 'center', showBackground: true } as never, anchor as never);
         }
-        v.setStyle({ resi }, { cartoon: { color: '#f2c230' }, stick: { color: '#f2c230', radius: 0.28 } });
-        v.addStyle({ resi, atom: 'CB' } as never, { sphere: { color: '#f2c230', radius: 1.0 } });
-        v.addLabel(reveal ? site.aa : '?', { fontSize: 15, fontColor: '#111', backgroundColor: '#f2c230', backgroundOpacity: 0.95, borderThickness: 0, inFront: true, alignment: 'bottomCenter' } as never, { resi, atom: 'CB' } as never);
+        if (reveal) {   // the real side chain: yellow carbons, element colours for N/O/S
+          v.setStyle({ resi }, { cartoon: { color: '#f2c230' }, stick: { colorscheme: { prop: 'elem', map: { C: '#f2c230', N: '#7aa2ff', O: '#ff6b5e', S: '#ffe08a' } }, radius: 0.4 } } as never);
+          if (site.aa === 'G') v.addStyle({ resi, atom: 'CA' } as never, { sphere: { color: '#f2c230', radius: 0.7 } });
+        } else {
+          v.setStyle({ resi }, { cartoon: { color: '#f2c230' }, stick: { color: '#f2c230', radius: 0.28 } });
+          v.addStyle({ resi, atom: 'CB' } as never, { sphere: { color: '#f2c230', radius: 1.0 } });
+        }
+        v.addLabel(reveal ? site.aa : '?', { fontSize: 15, fontColor: '#111', backgroundColor: '#f2c230', backgroundOpacity: 0.95, borderThickness: 0, inFront: true, alignment: 'bottomCenter' } as never, { resi, atom: reveal ? 'CA' : 'CB' } as never);   // revealed: label the backbone so it doesn't hide the side chain
         if (framed.current !== site.id) {   // keep the user's rotation when only the label changes (reveal)
           v.zoomTo({ resi: [resi, ...site.nbrs.map(([j]) => j + 1)] } as never);
           v.zoom(1.15);
           framed.current = site.id;
         }
         v.render();
-      } catch (e) { setErr(String(e)); }
+        setLoading(false);
+        ready.current?.(site.id);
+      } catch (e) { if (!cancelled) { setErr(`Couldn't load this structure (${e instanceof Error ? e.message : e}). Check your connection; the neighbour list and backbone panel still describe it.`); setLoading(false); ready.current?.(site.id); } }
     })();
     return () => { cancelled = true; };
   }, [site, reveal, sideChains]);
@@ -79,6 +92,7 @@ export function StructureViewer({ site, reveal, height = 380, sideChains = true 
   return (
     <div className="structure-wrap">
       <div ref={div} style={{ width: '100%', height, position: 'relative' }} />
+      {loading && !err && <div className="structure-loading"><span className="spinner" />Loading the 3D structure…</div>}
       {err && <div className="structure-error">{err}</div>}
       <div className="structure-hint">drag to rotate · scroll to zoom</div>
     </div>

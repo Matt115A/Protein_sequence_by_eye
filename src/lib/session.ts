@@ -51,12 +51,20 @@ export class SessionCore {
       phase_starts: { [config.phases[0].name]: 1 }, prior: opts.prior ?? { sessions: 0, trials: 0, session_ids: [], excluded_sites: 0 },
       start_time: start.toISOString(), end_time: null, end_reason: null, total_trials: 0, active_duration_ms: 0, paused_ms: 0,
       environment: { user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'node', screen: typeof screen !== 'undefined' ? `${screen.width}x${screen.height}` : 'n/a' },
-      timing_notes: 'Onset = first animation frame after the trial rendered; response = key press or tap timeStamp. Self-paced, so RT is a rough measure.',
+      timing_notes: 'Onset = first animation frame after the trial rendered (structure game: after the 3D structure finished drawing); response = key press or tap timeStamp. Self-paced, so RT is a rough measure.',
     };
   }
 
   get phase(): PhaseSpec | null { return this.config.phases[this.phaseIdx] ?? null; }
   get done() { return this.phaseIdx >= this.config.phases.length; }
+
+  /** Proteins the next few trials will use (the round-robin order), so their structures can be fetched ahead of time. */
+  upcomingProteins(n: number): string[] {
+    if (!this.phase) return [];
+    const keys = this.order.get(this.phase.group) ?? [], r = this.rot.get(this.phase.group) ?? 0, out: string[] = [];
+    for (let t = 0; t < keys.length && out.length < n; t++) { const key = keys[(r + t) % keys.length]; if (this.pools.get(key)?.length) out.push(key); }
+    return out;
+  }
 
   nextStimulus(): Site | null {
     if (!this.phase) return null;

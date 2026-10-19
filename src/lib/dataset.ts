@@ -25,7 +25,11 @@ export function loadIcons(): Promise<Record<string, string>> {
 
 const pdbCache = new Map<string, Promise<string>>();
 export function loadStructure(key: string): Promise<string> {
-  if (!pdbCache.has(key)) pdbCache.set(key, fetch(`${BASE}data/structures/${key}.pdb`).then((r) => { if (!r.ok) throw new Error(`structure ${key}: HTTP ${r.status}`); return r.text(); }));
+  if (!pdbCache.has(key)) {
+    const p = fetch(`${BASE}data/structures/${key}.pdb`).then((r) => { if (!r.ok) throw new Error(`structure ${key}: HTTP ${r.status}`); return r.text(); });
+    p.catch(() => pdbCache.delete(key));   // a failed (pre)fetch must not poison the cache: try again next time
+    pdbCache.set(key, p);
+  }
   return pdbCache.get(key)!;
 }
 

@@ -4,7 +4,7 @@ import { Help } from '../components/Help';
 import { Picker } from '../components/Picker';
 import { Tour, type TourStep } from '../components/Tour';
 import { BackbonePanel, NeighbourPanel, ProteinLine, SequenceWindow, StructurePanel } from '../components/TrialViews';
-import { probsOf } from '../lib/dataset';
+import { loadStructure, probsOf } from '../lib/dataset';
 import { saveLocal } from '../lib/export';
 import type { SessionCore } from '../lib/session';
 import { AA_INFO, FAMILY_OF, FAMILIES, MODE_INFO, trialPoints, type ModelInfo, type PhaseSpec, type Session, type Site, type TrialRecord } from '../lib/types';
@@ -57,6 +57,9 @@ export function Experiment({ core, aa, models, onEnd }: { core: SessionCore; aa:
   const prevState = useRef<State>('trial');
   const ended = useRef(false);
   const seen = useRef<Site[]>([]);
+  /** Structure game: the site whose 3D structure has finished drawing. The response clock waits for it. */
+  const [readyFor, setReadyFor] = useState<number | null>(null);
+  const waiting = mode === 'struct' && !!site && readyFor !== site.id;
   const [touch] = useState(isTouch);
   const [narrow, setNarrow] = useState(isNarrow);
   useEffect(() => { const h = () => setNarrow(isNarrow()); addEventListener('resize', h); return () => removeEventListener('resize', h); }, []);
@@ -75,9 +78,16 @@ export function Experiment({ core, aa, models, onEnd }: { core: SessionCore; aa:
   useEffect(() => {
     if (state !== 'trial' || !site) return;
     onset.current = null;
+    if (waiting) return;   // the clock starts when the structure is on screen
     const id = requestAnimationFrame(() => (onset.current = { perf: performance.now(), wall: new Date(), elapsed: activeMs() }));
     return () => cancelAnimationFrame(id);
-  }, [state, site]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [state, site, waiting]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // once this structure is up, fetch the next few proteins' structures in the background so later trials appear at once
+  useEffect(() => {
+    if (mode !== 'struct' || waiting) return;
+    for (const key of core.upcomingProteins(3)) loadStructure(key).catch(() => { /* retried when needed */ });
+  }, [mode, waiting, core, site]);
 
   useEffect(() => { const id = setInterval(() => setClock(activeMs()), 500); return () => clearInterval(id); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -152,12 +162,13 @@ export function Experiment({ core, aa, models, onEnd }: { core: SessionCore; aa:
           <div className="q-card">
             <ProteinLine site={site} reveal={!!revealed} />
             <SequenceWindow site={site} reveal={!!revealed} big={mode === 'seq'} />
-            {!revealed && <div className="q-prompt" data-tour="prompt"><Help k="picker">Which amino acid is hidden?</Help> <span className="muted">{touch ? 'Tap one below.' : 'Click one below or type its letter.'}</span></div>}
+            {!revealed && waiting && <div className="q-prompt q-loading"><span className="spinner" /> Loading the 3D structure… <span className="muted">the clock starts when it appears.</span></div>}
+            {!revealed && !waiting && <div className="q-prompt" data-tour="prompt"><Help k="picker">Which amino acid is hidden?</Help> <span className="muted">{touch ? 'Tap one below.' : 'Click one below or type its letter.'}</span></div>}
             {revealed && <Feedback site={site} t={last} aa={aa} mode={mode} onNext={advance} touch={touch} />}
           </div>
           {mode === 'struct' && (
             <div className="panels-s">
-              <StructurePanel site={site} reveal={!!revealed} height={narrow ? 300 : 400} mode={mode} />
+              <StructurePanel site={site} reveal={!!revealed} height={narrow ? 300 : 400} mode={mode} onReady={setReadyFor} />
               <div className="panels-s-side"><BackbonePanel site={site} /><NeighbourPanel site={site} /></div>
             </div>
           )}
@@ -199,7 +210,7 @@ function Feedback({ site, t, aa, mode, onNext, touch }: { site: Site; t: TrialRe
       <div className="fb-verdict">
         {t.correct ? `✓ Correct: ${AA_INFO[site.aa].name}` : fam ? `≈ Right family: it was ${AA_INFO[site.aa].name} (${site.aa})` : `✗ It was ${AA_INFO[site.aa].name} (${site.aa})`}
         {!t.correct && <span className="muted"> · you picked {AA_INFO[t.response].name}</span>}
-        {mode === 'struct' && <span className={`fb-points ${pts === 1 ? 'full' : pts > 0 ? 'part' : ''}`}>+{pts === 1 ? '1' : pts.toFixed(2)} {pts === 1 ? 'point' : 'points'}{pts > 0 && pts < 1 ? ` (right ${famLabel} family)` : ''}</span>}
+        {mode === 'struct' && <span className={`fb-points ${pts === 1 ? 'full' : pts > 0 ? 'part' : ''}`}>{pts === 0 ? '0' : `+${pts === 1 ? '1' : pts.toFixed(2)}`} {pts === 1 ? 'point' : 'points'}{pts > 0 && pts < 1 ? ` (right ${famLabel} family)` : ''}</span>}
       </div>
       <div className="fb-models">
         {lines.map((l) => (

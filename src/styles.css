@@ -535,3 +535,8 @@ p.save-note b { color: var(--text); }
 .credit-chip { font-size: 13px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 99px; color: var(--text-2); background: var(--surface-2); }
 .credit-chip b { color: var(--text); margin-left: 4px; }
 .credit-chip.exact { border-color: rgba(60, 207, 126, .6); }
+/* loading state for the 3D view */
+.structure-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--text-2); font-size: 14px; background: #141413; z-index: 2; }
+.spinner { display: inline-block; width: 18px; height: 18px; border: 2.5px solid rgba(242, 194, 48, .25); border-top-color: #f2c230; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: middle; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.q-loading { display: flex; align-items: center; justify-content: center; gap: 10px; }
