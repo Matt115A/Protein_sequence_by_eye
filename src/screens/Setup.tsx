@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { loadLocal } from '../lib/export';
 import { LevelToggle, useLevel } from '../lib/level';
-import { clearAllAttempts, type HistoryEntry, loadArchived, removeFromHistory } from '../lib/history';
+import { clearAllAttempts, type HistoryEntry, latestSession, loadArchived, removeFromHistory } from '../lib/history';
 import { type Config, type Dataset, defaultConfig, FAMILIES, FAMILY_COLOR, FAMILY_CREDIT, MODE_INFO, type Mode, type Session } from '../lib/types';
 
 const EXPERT_MODE: Record<Mode, string> = {
@@ -17,6 +17,7 @@ export function Setup({ data, initial, history, debug, onStart, onSimulate, onOp
   const [c, setC] = useState<Config>(initial);
   const [level, setLevel] = useLevel();
   const [last, setLast] = useState(() => loadLocal());
+  const mine = latestSession(history, last, c.mode);
   const setMode = (m: Mode) => setC(defaultConfig(m));
   return (
     <div className="screen">
@@ -35,7 +36,7 @@ export function Setup({ data, initial, history, debug, onStart, onSimulate, onOp
             </button>
           ))}
         </div>
-        <button className="btn btn-primary" onClick={() => onStart(c)} style={{ padding: '12px 34px', fontSize: 16, margin: '0 0 22px' }}>Start {MODE_INFO[c.mode].short.toLowerCase()} game</button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', margin: '0 0 22px' }}><button className="btn btn-primary" onClick={() => onStart(c)} style={{ padding: '12px 34px', fontSize: 16 }}>Start {MODE_INFO[c.mode].short.toLowerCase()} game</button><button className="btn" disabled={!mine} title={mine ? 'Your results so far, as at the end of a game' : 'Play a game first to see your stats'} onClick={() => mine && onOpenSession(mine)} style={{ padding: '12px 22px', fontSize: 16 }}>Your stats</button></div>
         <div className="card" style={{ marginBottom: 18 }}>
           <h3 className="card-title">How it works</h3>
           {level === 'learner' ? (
