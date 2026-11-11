@@ -1,12 +1,12 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { loadLocal } from '../lib/export';
 import { LevelToggle, useLevel } from '../lib/level';
 import { clearAllAttempts, type HistoryEntry, loadArchived, removeFromHistory } from '../lib/history';
 import { type Config, type Dataset, defaultConfig, FAMILIES, FAMILY_COLOR, FAMILY_CREDIT, MODE_INFO, type Mode, type Session } from '../lib/types';
 
 const EXPERT_MODE: Record<Mode, string> = {
-  seq: 'Masked-token prediction from an 11-residue window (10 flanking residues). Compared with ESM2 8M to 650M on the same window and on the full sequence with only the site masked.',
-  struct: 'Inverse folding: the masked residue as backbone plus virtual Cβ, its 16 nearest neighbours with side chains (toggleable), and the local sequence. Compared with ProteinMPNN decoding the site last and first.',
+  seq: 'Masked-token prediction from an 11-residue window (10 flanking residues). Compared with ESM2 8M to 650M on the same window and on the full sequence with only the site masked. Good luck!',
+  struct: 'Inverse folding: the masked residue as backbone plus virtual Cβ, its 16 nearest neighbours with side chains (toggleable), and the local sequence. Compared with ProteinMPNN decoding the site last and first. This is marginally easier than the sequence game.',
 };
 
 const pct = (v: number | null) => (v == null ? '–' : `${Math.round(v * 100)}%`);
@@ -17,16 +17,12 @@ export function Setup({ data, initial, history, debug, onStart, onSimulate, onOp
   const [c, setC] = useState<Config>(initial);
   const [level, setLevel] = useLevel();
   const [last, setLast] = useState(() => loadLocal());
-  const fileRef = useRef<HTMLInputElement>(null);
-  const total = c.phases.reduce((a, p) => a + p.trials, 0);
-  const seenIds = new Set(history.flatMap((h) => h.window_ids));
-  const loadFile = async (f: File) => { try { const s = JSON.parse(await f.text()) as Session; if (!s.meta || !Array.isArray(s.trials)) throw 0; onOpenSession(s); } catch { alert('Not a session JSON.'); } };
   const setMode = (m: Mode) => setC(defaultConfig(m));
   return (
     <div className="screen">
       <div className="setup" style={{ width: 'min(980px, 100%)' }}>
         <div className="setup-top"><a className="bioai-link" href="https://matt115a.github.io/BioAI_by_eye/">PART OF BIOAI BY EYE →</a><LevelToggle level={level} onChange={setLevel} /></div>
-        <h1 className="title">Fill the mask</h1>
+        <h1 className="title">Build a protein</h1>
         <p className="subtitle">{level === 'learner' ? 'Learn to predict a hidden amino acid the way protein AI models are trained, then race ESM2 and ProteinMPNN on the same sites.'
           : '20-way masked residue prediction on AlphaFold2 models · scored against ESM2 (8M to 650M) and ProteinMPNN on identical sites.'}</p>
         <div className="mode-cards">
@@ -35,62 +31,50 @@ export function Setup({ data, initial, history, debug, onStart, onSimulate, onOp
               <div className="mode-title">{MODE_INFO[m].title}</div>
               <div className="mode-like">{MODE_INFO[m].like}</div>
               <div className="mode-desc">{level === 'learner' ? MODE_INFO[m].description : EXPERT_MODE[m]}</div>
-              <div className="mode-demo">{m === 'seq' ? <span className="demo-seq">…K L V E A <b>?</b> G Q R L D…</span> : <span className="demo-seq">backbone · 3D neighbours · window</span>}</div>
+              <div className="mode-demo">{m === 'seq' ? <span className="demo-seq">…K L V E A <b>?</b> G Q R L D…</span> : <span className="demo-seq">backbone and 3D neighbours</span>}</div>
             </button>
           ))}
+        </div>
+        <button className="btn btn-primary" onClick={() => onStart(c)} style={{ padding: '12px 34px', fontSize: 16, margin: '0 0 22px' }}>Start {MODE_INFO[c.mode].short.toLowerCase()} game</button>
+        <div className="card" style={{ marginBottom: 18 }}>
+          <h3 className="card-title">How it works</h3>
+          {level === 'learner' ? (
+            <p className="card-sub" style={{ fontSize: 14.5, lineHeight: 1.6 }}>
+              Protein AI models can learn by filling in blanks. <b>ESM2</b> hides ~15% of the amino acids in millions of natural sequences and learns to predict them
+              from the ones it can see. <b>ProteinMPNN</b> learns the reverse of folding: given a backbone structure (no side chains) and the identities of nearby residues,
+              predict each residue. Here you do the same tasks! After each guess you'll see the model's guess for all 20 amino acids. A live leaderboard
+              lets you race a model as you go. Chance is 5%; always guessing the commonest amino acid (leucine) gets about 10% (leucine is over-represented).
+            </p>
+          ) : (
+            <p className="card-sub" style={{ fontSize: 14.5, lineHeight: 1.6 }}>
+              {data.sites.length.toLocaleString()} sites in {data.proteins.length} proteins (AlphaFold2 models distributed with ProteinGym v1.3; mean pLDDT ≥ 85, site pLDDT ≥ 80).
+              Competitors: ESM2 masked-token probabilities (8M, 35M, 150M, 650M), run on exactly what you see and separately on
+              the whole sequence with only the site masked; ProteinMPNN v_48_020 with no backbone noise, decoding the site last (backbone plus all other residues, how
+              it scores a residue) and first (backbone only). After each guess you see the true residue and the reference model's full distribution.
+              Baselines: always leucine (about 10%), plus logistic regression on the window and gradient boosting on the structure cues, both
+              trained on ~27k sites from ProteinGym structures not used here. Chance is 5% (about 8% in the structure game, with family credit).
+            </p>
+          )}
         </div>
         {c.mode === 'struct' && (
           <div className="card scoring-card" style={{ marginBottom: 18 }}>
             <h3 className="card-title">How points work in the structure game</h3>
             <p className="card-sub" style={{ fontSize: 14.5, lineHeight: 1.6 }}>
               {level === 'learner'
-                ? 'The exact amino acid scores 1 point. The wrong amino acid from the right family scores partial credit, and rarer families are worth more, so always picking the most common kind of amino acid does not pay. The AI models are scored the same way.'
+                ? 'The correct amino acid scores 1 point. The wrong amino acid from the right family scores partial credit, and rarer families are worth more (always picking the most common kind of amino acid does not pay). The AI models are scored the same way.'
                 : 'Exact match: 1. Same family: 0.5 × (share of the rarest family / share of this family) over the 2,520 sites, so a blind pick from any family has the same expected bonus (about 0.04). Models are scored on their top-1 pick under the same rule.'}
             </p>
             <div className="credit-chips"><span className="credit-chip exact">exact amino acid <b>1</b></span>
               {FAMILIES.map((f) => <span key={f.key} className="credit-chip" style={{ borderColor: FAMILY_COLOR[f.key] }}><span style={{ color: FAMILY_COLOR[f.key] }}>{f.label}</span> family <b>{FAMILY_CREDIT[f.key]}</b></span>)}</div>
           </div>
         )}
-        <div className="card" style={{ marginBottom: 18 }}>
-          <h3 className="card-title">How it works</h3>
-          {level === 'learner' ? (
-            <p className="card-sub" style={{ fontSize: 14.5, lineHeight: 1.6 }}>
-              Protein AI models can learn by filling in blanks. <b>ESM2</b> hides ~15% of the amino acids in millions of natural sequences and learns to predict them
-              from the rest. <b>ProteinMPNN</b> learns the reverse of folding: given a backbone structure (no side chains) and the identities of nearby residues,
-              predict each residue. Here you do the same task, on {data.sites.length.toLocaleString()} sites in {data.proteins.length} real proteins (AlphaFold structures),
-              with the same feedback a model gets: the right answer. After each guess you'll see the model's probabilities for all 20 amino acids. Pick by clicking a
-              structure, or type its one-letter code. A live leaderboard lets you race a model as you go. Chance is 5%; always guessing the commonest amino acid (leucine) gets about 10%.
-            </p>
-          ) : (
-            <p className="card-sub" style={{ fontSize: 14.5, lineHeight: 1.6 }}>
-              {data.sites.length.toLocaleString()} sites in {data.proteins.length} proteins (AlphaFold2 models distributed with ProteinGym v1.3; mean pLDDT ≥ 85, site pLDDT ≥ 80),
-              28 for learning and 8 held out as new proteins. References: ESM2 masked-token probabilities (8M, 35M, 150M, 650M), run on exactly the window shown and on
-              the whole sequence with only the site masked; ProteinMPNN v_48_020 with no backbone noise, decoding the site last (backbone plus all other residues, how
-              it scores a residue) and first (backbone only). After each guess you see the true residue and the reference model's full distribution, i.e. the same
-              supervision signal. Baselines: always leucine (about 10%), plus logistic regression on the window and gradient boosting on the structure cues, both
-              trained on ~27k sites from ProteinGym structures not used here. Chance is 5% (about 8% in the structure game, with family credit).
-            </p>
-          )}
-        </div>
         <Attempts history={history} last={last} total={data.sites.length} onOpen={onOpenSession} onChange={(h) => { onHistoryChange(h); setLast(loadLocal()); }} />
-        <div className="card" style={{ marginBottom: 18 }}>
-          <div className="card-head"><div><h3 className="card-title">{MODE_INFO[c.mode].title}: the session</h3><p className="card-sub">Learn on {data.proteins.filter((p) => p.group === 'learn').length} proteins, then test on {data.proteins.filter((p) => p.group === 'new').length} you haven't seen.</p></div></div>
-          <div className="table-scroll"><table className="data"><thead><tr><th>Part</th><th className="num">Sites</th><th>After each guess</th></tr></thead>
-            <tbody>{c.phases.map((p, i) => <tr key={p.name}><td>{i + 1}. {p.label}</td><td className="num">{debug ? <input type="number" style={{ width: 70 }} value={p.trials} onChange={(e) => setC({ ...c, phases: c.phases.map((q, j) => (j === i ? { ...q, trials: Number(e.target.value) } : q)) })} /> : p.trials}</td><td className="muted">real answer + model probabilities</td></tr>)}</tbody></table></div>
-          <p className="note" style={{ marginTop: 8 }}>{total} sites · self-paced (roughly {c.mode === 'seq' ? '15–25' : '20–35'} min). {seenIds.size ? `${seenIds.size} sites from earlier attempts won't be repeated.` : ''}</p>
-        </div>
         {debug && <div className="debug-panel"><h4>DEBUG</h4><button className="btn btn-sm" onClick={() => onSimulate(c)}>Simulate full session</button></div>}
-        <div className="row" style={{ justifyContent: 'space-between', marginTop: 10 }}>
-          <button className="btn btn-primary" onClick={() => onStart(c)} style={{ padding: '12px 26px', fontSize: 16 }}>Start {MODE_INFO[c.mode].short.toLowerCase()} game</button>
-          <div className="row">
-            <button className="btn btn-sm" onClick={() => fileRef.current?.click()}>Open session file…</button>
-            <input ref={fileRef} type="file" accept=".json" hidden onChange={(e) => e.target.files?.[0] && loadFile(e.target.files[0])} />
-          </div>
-        </div>
-        <p className="save-note">
+        <p className="save-note" style={{ margin: '14px auto 0' }}>
           <b>You don't have to finish in one sitting.</b> Pause at any point (<kbd>Esc</kbd>, or the Pause button on a phone) and choose <b>Stop &amp; save</b>, or just close the tab;
           your answers are saved in this browser every few sites. When you come back they're listed under <b>Your attempts</b>, and your next run carries on with sites you haven't seen yet.
         </p>
+        <button className="btn btn-primary" onClick={() => onStart(c)} style={{ display: 'block', width: '100%', padding: '14px 26px', fontSize: 17, marginTop: 22 }}>Start {MODE_INFO[c.mode].short.toLowerCase()} game</button>
         <p className="note" style={{ marginTop: 22 }}>
           Data: AlphaFold2 structures from <a href="https://proteingym.org" target="_blank" rel="noreferrer">ProteinGym</a> (originally <a href="https://alphafold.ebi.ac.uk" target="_blank" rel="noreferrer">AlphaFold DB</a>, CC BY 4.0).
           Models: <a href="https://github.com/facebookresearch/esm" target="_blank" rel="noreferrer">ESM2</a> (Lin et al. 2023) and <a href="https://github.com/dauparas/ProteinMPNN" target="_blank" rel="noreferrer">ProteinMPNN</a> (Dauparas et al. 2022), run on every site in advance. Source and method: <a href="https://github.com/Matt115A/Protein_sequence_by_eye" target="_blank" rel="noreferrer">github.com/Matt115A/Protein_sequence_by_eye</a>.
@@ -114,7 +98,7 @@ function Attempts({ history, last, total, onOpen, onChange }: { history: History
         <h3 className="card-title">Your attempts</h3>
         <p className="card-sub">{history.length
           ? <>{history.length} on this device · {seen.toLocaleString()} of {total.toLocaleString()} sites seen. New runs skip sites you've already seen; clear your attempts to start from scratch.</>
-          : cleared ? <span className="attempts-cleared">✓ Cleared. Every site is available again.</span> : <>No attempts yet. Your runs on this device appear here, including ones you stop partway, so you can re-open their analysis or start fresh.</>}</p>
+          : cleared ? <span className="attempts-cleared">✓ Cleared. Every site is available again.</span> : <>No attempts yet. Your runs on this device appear here, including ones you stop partway, so you can re-open their analysis, delete them to start fresh, or (default) pick up where you left off.</>}</p>
       </div></div>
       {history.length > 0 && (
         <>

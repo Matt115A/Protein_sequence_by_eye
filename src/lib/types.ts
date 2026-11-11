@@ -23,7 +23,7 @@ export interface Config {
 export const MODE_INFO: Record<Mode, { title: string; short: string; like: string; rival: string; description: string }> = {
   seq: {
     title: 'Sequence game', short: 'Sequence', like: 'like ESM2 (masked language model)', rival: 'esm650_w',
-    description: 'You see 10 amino acids from inside a real protein with the middle one hidden. Guess the hidden amino acid. This is exactly the task a masked protein language model like ESM2 is trained on, billions of times.',
+    description: 'You see 10 amino acids from inside a real protein with the middle one hidden. Guess the hidden amino acid. This is exactly the task a masked protein language model like ESM2 is trained on, billions of times. I must say, this game is ridiculously hard.',
   },
   struct: {
     title: 'Structure game', short: 'Structure', like: 'like ProteinMPNN (inverse folding)', rival: 'mpnn',
