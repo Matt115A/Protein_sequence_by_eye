@@ -7,7 +7,7 @@ const { cumulativeSession } = await import('../src/lib/history');
 
 const mk = (id: string, start: string, n: number, mode: 'seq' | 'struct' = 'seq'): Session =>
   ({ meta: { session_id: id, start_time: start, dataset_version: '1.0.0', simulated: false, active_duration_ms: 1000, config: { mode } },
-     trials: Array.from({ length: n }, (_, i) => ({ site_id: i, tag: `${id}:${i}` })) } as unknown as Session);
+     trials: Array.from({ length: n }, (_, i) => ({ site_id: i, tag: `${id}:${i}`, trial: i + 1, elapsed_ms: (i + 1) * 100, phase: i ? 'main' : 'warmup' })) } as unknown as Session);
 const archive = (...ss: Session[]) => mem.set('mask.sessions', JSON.stringify(Object.fromEntries(ss.map((s) => [s.meta.session_id, s]))));
 const tags = (s: Session) => (s.trials as unknown as { tag: string }[]).map((t) => t.tag);
 
@@ -23,5 +23,13 @@ describe('cumulative analysis keeps the two games apart', () => {
     const other = cumulativeSession(mk('struct-now', '2026-06-02', 1, 'struct'));
     expect(other.sessions).toBe(2);
     expect(tags(other.session)).toEqual(['struct-old:0', 'struct-old:1', 'struct-old:2', 'struct-old:3', 'struct-old:4', 'struct-now:0']);
+  });
+
+  it('renumbers trials and offsets time so sessions follow one another on the x axis', () => {
+    archive(mk('a', '2026-01-01', 3));
+    const got = cumulativeSession(mk('b', '2026-02-01', 2)).session;
+    expect(got.trials.map((t) => t.trial)).toEqual([1, 2, 3, 4, 5]);
+    expect(got.trials.map((t) => t.elapsed_ms)).toEqual([100, 200, 300, 1100, 1200]);   // session a lasted 1000 ms
+    expect(got.meta.phase_starts).toEqual({ warmup: 1, main: 2 });
   });
 });
