@@ -1,6 +1,6 @@
 import { loadLocal } from './export';
 import { backfillSessions, buildContribution, forgetSessions } from './bioai';
-import { type Mode, type Session, trialPoints } from './types';
+import { type Dataset, type Mode, points, type Session, trialPoints } from './types';
 
 /** Past sessions on this device: which sites were seen (so they're never reused) and how they went. */
 export interface HistoryEntry {
@@ -133,4 +133,11 @@ export function cumulativeSession(s: Session): { session: Session; sessions: num
     session: { ...s, meta: { ...s.meta, start_time: all[0].meta.start_time, active_duration_ms: active, phase_starts }, trials },
     sessions: all.length,
   };
+}
+
+/** The game's own marking for one contributed answer (1 = right; the structure game gives partial credit), or null
+ *  for an item this dataset does not know. Used to place other players' contributions alongside yours. */
+export function answerScorer(data: Dataset, mode: Mode): (item: number, response: string) => number | null {
+  const truth = new Map<number, string>(data.sites.map((x) => [x.id, x.aa]));
+  return (item, r) => { const t = truth.get(item); return t == null ? null : points(mode, r, t); };
 }

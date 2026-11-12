@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LiveBoard } from '../components/LiveBoard';
+import type { HumanBaseline } from '../lib/bioai';
 import { Help } from '../components/Help';
 import { Picker } from '../components/Picker';
 import { Tour, type TourStep } from '../components/Tour';
@@ -45,7 +46,7 @@ export const FEEDBACK_MODELS = {
   struct: { main: 'mpnn', second: 'mpnn_bb', labels: ['ProteinMPNN · backbone + neighbours', 'ProteinMPNN · backbone only'] as [string, string] },
 };
 
-export function Experiment({ core, aa, models, onEnd }: { core: SessionCore; aa: string; models: ModelInfo[]; onEnd: (s: Session) => void }) {
+export function Experiment({ core, aa, models, onEnd, human }: { core: SessionCore; aa: string; models: ModelInfo[]; onEnd: (s: Session) => void; human?: HumanBaseline | null }) {
   const mode = core.config.mode;
   const [state, setState] = useState<State>(core.phase?.intro ? 'intro' : 'trial');
   const [site, setSite] = useState<Site | null>(() => core.nextStimulus());
@@ -155,7 +156,7 @@ export function Experiment({ core, aa, models, onEnd }: { core: SessionCore; aa:
         <span><span className="muted">Time</span> <b>{fmtClock(clock)}</b></span>
         {touch ? <button className="btn btn-sm hud-pause" {...noFocus} onClick={togglePause}>Pause</button> : <span className="muted hud-esc">Esc to pause or stop · progress is saved</span>}
         <button className="btn btn-sm hud-tour" data-tour="tour-button" {...noFocus} onClick={openTour} title="A guided tour of everything on this screen">Tour</button>
-        <span data-tour="board" className="hud-board"><LiveBoard seen={seen.current} correct={core.trials.map(trialPoints)} mode={mode} models={models} window={20} storageKey={`mask.rival.${mode}`} fallback={MODE_INFO[mode].rival} /></span>
+        <span data-tour="board" className="hud-board"><LiveBoard human={human} seen={seen.current} correct={core.trials.map(trialPoints)} mode={mode} models={models} window={20} storageKey={`mask.rival.${mode}`} fallback={MODE_INFO[mode].rival} /></span>
       </div>
       {site && (
         <>
